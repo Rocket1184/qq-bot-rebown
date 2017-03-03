@@ -1,0 +1,22 @@
+{
+  "name": "qq-bot-rebown",
+  "version": "0.1.0",
+  "description": "Web QQ client using es7 syntax",
+  "engines": {
+      "node": ">=7.6.0"
+  },
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "qq"
+  ],
+  "repository": "github:rocket1184/qq-bot-rebown",
+  "author": "rocka <i@rocka.me> (https://rocka.me)",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^0.15.3",
+    "log": "^1.4.0"
+  }
+}
