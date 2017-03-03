@@ -8,11 +8,18 @@ const Cookie = require('cookie');
 
 const log = new Log('debug');
 
+function logResponse(resp) {
+    log.debug(`url: ${resp.config.url}`);
+    log.debug(`status: ${resp.status} ${resp.statusText}`);
+    log.debug(`headers:`);
+    console.dir(resp.headers);
+}
+
 class HttpClient {
     constructor() {
         this.cookie = {};
         this.clientHeaders = {
-            'User-Agent': 'Mozilla/5.0 (Linux x86_64; rv:51.0) Gecko/20100101 Firefox/51.0'
+            UserAgent: 'Mozilla/5.0 (Linux x86_64; rv:51.0) Gecko/20100101 Firefox/51.0'
         };
     }
 
@@ -27,6 +34,8 @@ class HttpClient {
     }
 
     updateCookie(arg) {
+        if (Array.isArray(arg))
+            arg = arg.join(' ');
         if (typeof arg == 'string')
             arg = Cookie.parse(arg);
         for (let key in arg) {
@@ -56,6 +65,7 @@ class HttpClient {
     }
 
     post(url, data, config) {
+
         if (typeof data == 'object') data = qs.stringify(data);
         return new Promise((resolve, reject) => {
             Axios({
@@ -70,7 +80,7 @@ class HttpClient {
                     'Content-Length': Buffer.byteLength(data)
                 }
             }).then(response => {
-                log.debug(response);
+                logResponse(response);
                 this.updateCookie(response.headers['set-cookie']);
                 resolve(JSON.parse(response.data));
             }).catch(error => {
@@ -80,21 +90,22 @@ class HttpClient {
         });
     }
 
-    get(urlOrConfig, jsonParse = true) {
-        let config = {
-            url: (typeof urlOrConfig == 'string') ? urlOrConfig : urlOrConfig.url,
-            method: 'get',
-            headers: {
-                'Cookie': this.getCookieString(),
-                'Referer': urlOrConfig.Referer || '',
-                'User-Agent': this.clientHeaders['UserAgent'] || ''
-            }
-        };
+    get(urlOrConfig) {
+        let config;
+        if (typeof urlOrConfig == 'string')
+            config = { url: urlOrConfig };
+        else config = urlOrConfig;
+
+        config.headers = Object.assign({
+            Cookie: this.getCookieString(),
+            'User-Agent': this.clientHeaders.UserAgent
+        }, config.headers);
+
         return new Promise((resolve, reject) => {
-            Axios(config).then(response => {
-                log.debug(response);
+            Axios.get(config.url, config).then(response => {
+                logResponse(response);
+                this.updateCookie(response.headers['set-cookie']);
                 let result;
-                if (jsonParse) result = JSON.parse(response.data);
                 resolve(response.data);
             }).catch(error => {
                 // log.debug(response);
