@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Web QQ client using es7 syntax",
   "engines": {
-      "node": ">=7.6.0"
+    "node": ">=7.6.0"
   },
   "main": "index.js",
   "scripts": {
@@ -17,6 +17,7 @@
   "license": "MIT",
   "dependencies": {
     "axios": "^0.15.3",
+    "cookie": "^0.3.1",
     "log": "^1.4.0"
   }
 }
