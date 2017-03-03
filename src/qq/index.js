@@ -14,7 +14,7 @@ const AppConfig = {
     appid: 501004106
 };
 
-function writeFileAync (filePath, data, options) {
+function writeFileAsync(filePath, data, options) {
     return new Promise((resolve, reject) => {
         fs.writeFile(filePath, data, options, error => {
             if (error) reject(error);
@@ -43,10 +43,19 @@ class QQ {
             pgv_pvid: Codec.randPgv()
         };
         this.client.setCookie(initCookies);
-        await this.client.get(URL.loginPrepare, false);
-        let qrCode = await this.client.get(URL.qrcode, false);
-        await writeFileAync('/tmp/code.png', qrCode, 'binary');
-        log.info('二维码下载完成');
+        await this.client.get(URL.loginPrepare);
+        let qrCode = await this.client.get({ url: URL.qrcode, responseType: 'arraybuffer' });
+        await writeFileAsync('/tmp/code.png', qrCode, 'binary');
+        log.info('二维码下载完成，等待扫描...');
+        let scanSuccess = false;
+        do {
+            let responseBody = await this.client.get({
+                url: URL.getPtqrloginURL(this.client.getCookie('qrsig')),
+                headers: { Referer: URL.qrsigReferer },
+            });
+            log.debug(responseBody);
+            let arr = responseBody.split(`','`);
+        } while (!scanSuccess)
     }
 }
 
