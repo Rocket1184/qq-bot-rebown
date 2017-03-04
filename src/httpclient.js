@@ -36,7 +36,7 @@ class HttpClient {
 
     updateCookie(arg) {
         if (Array.isArray(arg))
-            arg = arg.join(' ');
+            arg = arg.join(' ').replace(/HttpOnly /g, '');
         if (typeof arg == 'string')
             arg = Cookie.parse(arg);
         for (let key in arg) {
@@ -70,24 +70,26 @@ class HttpClient {
         this.updateCookie(response.headers['set-cookie']);
     }
 
-    post(url, data, config) {
+    static mkFormR(payload) {
+        return qs.stringify({
+            r: JSON.stringify(payload)
+        });
+    }
 
-        if (typeof data == 'object') data = qs.stringify(data);
+    post(config) {
+        config.data = HttpClient.mkFormR(config.data);
+
+        config.headers = Object.assign({
+            Cookie: this.getCookieString(),
+            'User-Agent': this.clientHeaders.UserAgent,
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'Content-Length': Buffer.byteLength(config.data)
+        }, config.headers);
+
         return new Promise((resolve, reject) => {
-            Axios({
-                url: url,
-                method: 'post',
-                data: data,
-                headers: {
-                    'Cookie': this.getCookieString(),
-                    'Referer': config.Referer,
-                    'User-Agent': this.clientHeaders['UserAgent'],
-                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                    'Content-Length': Buffer.byteLength(data)
-                }
-            }).then(response => {
+            Axios(config).then(response => {
                 this.handleResponse(response);
-                resolve(JSON.parse(response.data));
+                resolve(response.data);
             }).catch(error => {
                 log.error(error);
                 reject(error);
