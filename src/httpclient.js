@@ -9,10 +9,11 @@ const Cookie = require('cookie');
 const log = new Log('debug');
 
 function logResponse(resp) {
-    log.debug(`url: ${resp.config.url}`);
+    log.debug(`request:`);
+    log.debug(JSON.stringify(resp.config, null, 4));
     log.debug(`status: ${resp.status} ${resp.statusText}`);
-    log.debug(`headers:`);
-    console.dir(resp.headers);
+    log.debug(`response headers:`);
+    log.debug(JSON.stringify(resp.headers, null, 4));    
 }
 
 class HttpClient {
@@ -84,7 +85,7 @@ class HttpClient {
                 this.updateCookie(response.headers['set-cookie']);
                 resolve(JSON.parse(response.data));
             }).catch(error => {
-                // log.debug(response);
+                log.error(error);
                 reject(error);
             });
         });
@@ -108,7 +109,7 @@ class HttpClient {
                 let result;
                 resolve(response.data);
             }).catch(error => {
-                // log.debug(response);
+                log.error(error);
                 reject(error);
             });
         });
