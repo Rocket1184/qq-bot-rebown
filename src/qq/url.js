@@ -16,5 +16,8 @@ module.exports = {
     getVfwebqqURL(ptwebqq) {
         return `http://s.web2.qq.com/api/getvfwebqq?ptwebqq=${ptwebqq}&clientid=53999199&psessionid=&t=${Math.random()}`;
     },
-    vfwebqqReferer: 'http://s.web2.qq.com/proxy.html?v=20130916001&callback=1&id=1'
+    vfwebqqReferer: 'http://s.web2.qq.com/proxy.html?v=20130916001&callback=1&id=1',
+    login2: 'http://d1.web2.qq.com/channel/login2',
+    login2Origin: 'http://d1.web2.qq.com',
+    login2Referer: 'http://d1.web2.qq.com/proxy.html?v=20151105001&callback=1&id=2'
 };
