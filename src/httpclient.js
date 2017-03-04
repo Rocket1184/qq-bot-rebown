@@ -8,8 +8,6 @@ const Cookie = require('cookie');
 
 const log = new Log('debug');
 
-const CookieRegxp = /^([^=]+)=(.+)$/;
-
 function logResponse(resp) {
     log.debug(`request:`);
     log.debug(JSON.stringify(resp.config, null, 4));
