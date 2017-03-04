@@ -8,12 +8,14 @@ const Cookie = require('cookie');
 
 const log = new Log('debug');
 
+const CookieRegxp = /^([^=]+)=(.+)$/;
+
 function logResponse(resp) {
     log.debug(`request:`);
     log.debug(JSON.stringify(resp.config, null, 4));
     log.debug(`status: ${resp.status} ${resp.statusText}`);
     log.debug(`response headers:`);
-    log.debug(JSON.stringify(resp.headers, null, 4));    
+    log.debug(JSON.stringify(resp.headers, null, 4));
 }
 
 class HttpClient {
@@ -65,6 +67,11 @@ class HttpClient {
         return result;
     }
 
+    handleResponse(response) {
+        logResponse(response);
+        this.updateCookie(response.headers['set-cookie']);
+    }
+
     post(url, data, config) {
 
         if (typeof data == 'object') data = qs.stringify(data);
@@ -81,8 +88,7 @@ class HttpClient {
                     'Content-Length': Buffer.byteLength(data)
                 }
             }).then(response => {
-                logResponse(response);
-                this.updateCookie(response.headers['set-cookie']);
+                this.handleResponse(response);
                 resolve(JSON.parse(response.data));
             }).catch(error => {
                 log.error(error);
@@ -104,13 +110,16 @@ class HttpClient {
 
         return new Promise((resolve, reject) => {
             Axios.get(config.url, config).then(response => {
-                logResponse(response);
-                this.updateCookie(response.headers['set-cookie']);
-                let result;
+                this.handleResponse(response);
                 resolve(response.data);
             }).catch(error => {
-                log.error(error);
-                reject(error);
+                if (error.response.status === 302) {
+                    this.handleResponse(error.response);
+                    resolve(error.response);
+                } else {
+                    log.error(error);
+                    reject(error);
+                }
             });
         });
     }
