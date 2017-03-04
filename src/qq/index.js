@@ -39,7 +39,7 @@ class QQ {
 
     async login() {
         let initCookies = {
-            pgv_info: `ssid=${Codec.randPgv()}`,
+            pgv_info: `ssid=s${Codec.randPgv()}`,
             pgv_pvid: Codec.randPgv()
         };
         this.client.setCookie(initCookies);
@@ -47,6 +47,7 @@ class QQ {
         let qrCode = await this.client.get({ url: URL.qrcode, responseType: 'arraybuffer' });
         await writeFileAsync('/tmp/code.png', qrCode, 'binary');
         log.info('二维码下载完成，等待扫描...');
+        require('child_process').exec('xdg-open /tmp/code.png');
         let scanSuccess = false;
         let quotRegxp = /'[^,]*'/g;
         let ptlogin4URL;
@@ -63,15 +64,17 @@ class QQ {
             }
         } while (!scanSuccess);
         log.info('二维码扫描完成');
-        await this.client.get(ptlogin4URL);
+        require('child_process').exec('rm /tmp/code.png');
+        await this.client.get({
+            url: ptlogin4URL,
+            maxRedirects: 0,     // Axios follows redirect automatically, but we need to disable it here.
+            headers: { Referer: URL.ptlogin4Referer }
+        });
         this.tokens.ptwebqq = this.client.getCookie('ptwebqq');
         log.info('获取 ptwebqq 成功');
         let vfwebqqResp = await this.client.get({
             url: URL.getVfwebqqURL(this.tokens.ptwebqq),
-            headers: {
-                Origin: URL.vfwebqqOrigin,
-                Referer: URL.vfwebqqReferer
-            }
+            headers: { Referer: URL.vfwebqqReferer }
         });
         log.debug(vfwebqqResp);
         this.tokens.vfwebqq = vfwebqqResp.result.vfwebqq;
