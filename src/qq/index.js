@@ -26,6 +26,7 @@ function writeFileAsync(filePath, data, options) {
 class QQ {
     constructor() {
         this.tokens = {
+            uin: '',
             ptwebqq: '',
             vfwebqq: '',
             psessionid: ''
@@ -96,6 +97,23 @@ class QQ {
 
         // Step5: psessionid and uin
         // TODO: 
+        let loginStat = await this.client.post({
+            url: URL.login2,
+            data: {
+                ptwebqq: this.tokens.ptwebqq,
+                clientid: AppConfig.clientid,
+                psessionid: "",
+                status: "online",
+            },
+            headers: {
+                Origin: URL.login2Origin,
+                Referer: URL.login2Referer
+            }
+        });
+        log.debug(loginStat);
+        this.tokens.uin = loginStat.result.uin;
+        this.tokens.psessionid = loginStat.result.psessionid;
+        log.info('获取 psessionid 和 uin 成功');
     }
 }
 
