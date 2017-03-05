@@ -192,14 +192,13 @@ class QQ {
                 },
                 headers: {
                     Origin: URL.msgOrigin,
-                    Referer: URL.referer130916
+                    Referer: URL.referer151105
                 },
                 responseType: 'text',
                 validateStatus: status => status === 200 || status === 504
             });
             try {
-                let msg = JSON.stringify(msgContent);
-                log.info(msg.result[0].value.content.join(''));
+                log.info(msgContent.result[0].value.content.filter(e => typeof e == 'string').join(' '));
             } catch (error) {
                 continue;
             }
