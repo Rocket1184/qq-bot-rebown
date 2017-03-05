@@ -84,10 +84,11 @@ class HttpClient {
     }
 
     post(config) {
+        config.method = 'post';
         config.data = HttpClient.mkFormR(config.data);
 
         config.headers = Object.assign({
-            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'Content-Type': 'application/x-www-form-urlencoded',
             'Content-Length': Buffer.byteLength(config.data)
         }, this.clientHeaders, config.headers);
 
@@ -111,7 +112,7 @@ class HttpClient {
         config.headers = Object.assign(this.clientHeaders, config.headers);
 
         return new Promise((resolve, reject) => {
-            Axios.get(config.url, config).then(response => {
+            Axios(config).then(response => {
                 this.handleResponse(response);
                 resolve(response.data);
             }).catch(error => {
