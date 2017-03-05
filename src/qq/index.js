@@ -37,6 +37,7 @@ class QQ {
 
     async run() {
         await this.login();
+        await this.poll();
     }
 
     async login() {
@@ -117,6 +118,92 @@ class QQ {
         this.tokens.uin = loginStat.result.uin;
         this.tokens.psessionid = loginStat.result.psessionid;
         log.info('(5/5) 获取 psessionid 和 uin 成功');
+    }
+
+    getBuddy() {
+        log.info('开始获取好友列表');
+        return this.client.post({
+            url: URL.getBuddy,
+            headers: {
+                Referer: URL.referer130916
+            },
+            data: {
+                vfwebqq: this.tokens.vfwebqq,
+                hash: Codec.hashU(this.tokens.uin, this.tokens.ptwebqq)
+            }
+        });
+    }
+
+    getOnlineBuddies() {
+        log.info('开始获取好友在线状态');        
+        return this.client.get({
+            url: URL.onlineBuddies(this.tokens.vfwebqq, this.tokens.psessionid),
+            headers: {
+                Referer: URL.referer151105
+            }
+        });
+    }
+
+    getGroup() {
+        log.info('开始获取群列表');
+        return this.client.post({
+            url: URL.getGroup,
+            headers: {
+                Referer: URL.referer130916
+            },
+            data: {
+                vfwebqq: this.tokens.vfwebqq,
+                hash: Codec.hashU(this.tokens.uin, this.tokens.ptwebqq)
+            }
+        });
+    }
+
+    getDiscu() {
+        log.info('开始获取讨论组列表');
+        return this.client.post({
+            url: URL.getDiscu(this.tokens.vfwebqq, this.tokens.psessionid),
+            headers: {
+                Referer: URL.referer130916
+            },
+            data: {
+                vfwebqq: this.tokens.vfwebqq,
+                hash: Codec.hashU(this.tokens.uin, this.tokens.ptwebqq)
+            }
+        });
+    }
+
+    async poll() {
+        let manyInfo = await Promise.all([
+            this.getBuddy(),
+            this.getOnlineBuddies(),
+            this.getDiscu(),
+            this.getGroup()
+        ]);
+        log.debug(JSON.stringify(manyInfo, null, 4));
+        log.info('开始接受消息');
+        do {
+            let msgContent = await this.client.post({
+                url: URL.poll,
+                data: {
+                    ptwebqq: this.tokens.ptwebqq,
+                    clientid: AppConfig.clientid,
+                    psessionid: this.tokens.psessionid,
+                    key: ''
+                },
+                headers: {
+                    Origin: URL.msgOrigin,
+                    Referer: URL.referer130916
+                },
+                responseType: 'text',
+                validateStatus: status => status === 200 || status === 504
+            });
+            try {
+                let msg = JSON.stringify(msgContent);
+                log.info(msg.result[0].value.content.join(''));
+            } catch (error) {
+                continue;
+            }
+        } while (true);
     }
 }
 
