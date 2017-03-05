@@ -19,8 +19,12 @@ function logResponse(resp) {
 class HttpClient {
     constructor() {
         this.cookie = {};
-        this.clientHeaders = {
-            UserAgent: 'Mozilla/5.0 (Linux x86_64; rv:51.0) Gecko/20100101 Firefox/51.0'
+    }
+    
+    get clientHeaders() {
+        return {
+            Cookie: this.getCookieString(),
+            'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:51.0) Gecko/20100101 Firefox/51.0'
         };
     }
 
@@ -42,6 +46,9 @@ class HttpClient {
         for (let key in arg) {
             this.cookie[key] = arg[key];
         }
+        delete this.cookie.EXPIRES;
+        delete this.cookie.DOMAIN;
+        delete this.cookie.PATH;
     }
 
     getCookie(key = '') {
@@ -80,11 +87,9 @@ class HttpClient {
         config.data = HttpClient.mkFormR(config.data);
 
         config.headers = Object.assign({
-            Cookie: this.getCookieString(),
-            'User-Agent': this.clientHeaders.UserAgent,
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
             'Content-Length': Buffer.byteLength(config.data)
-        }, config.headers);
+        }, this.clientHeaders, config.headers);
 
         return new Promise((resolve, reject) => {
             Axios(config).then(response => {
@@ -103,10 +108,7 @@ class HttpClient {
             config = { url: urlOrConfig };
         else config = urlOrConfig;
 
-        config.headers = Object.assign({
-            Cookie: this.getCookieString(),
-            'User-Agent': this.clientHeaders.UserAgent
-        }, config.headers);
+        config.headers = Object.assign(this.clientHeaders, config.headers);
 
         return new Promise((resolve, reject) => {
             Axios.get(config.url, config).then(response => {
