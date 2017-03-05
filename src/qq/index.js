@@ -81,6 +81,7 @@ class QQ {
         await this.client.get({
             url: ptlogin4URL,
             maxRedirects: 0,     // Axios follows redirect automatically, but we need to disable it here.
+            validateStatus: status => status === 302,
             headers: { Referer: URL.ptlogin4Referer }
         });
         this.tokens.ptwebqq = this.client.getCookie('ptwebqq');
@@ -96,7 +97,6 @@ class QQ {
         log.info('获取 vfwebqq 成功');
 
         // Step5: psessionid and uin
-        // TODO: 
         let loginStat = await this.client.post({
             url: URL.login2,
             data: {

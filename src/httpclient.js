@@ -116,13 +116,8 @@ class HttpClient {
                 this.handleResponse(response);
                 resolve(response.data);
             }).catch(error => {
-                if (error.response.status === 302) {
-                    this.handleResponse(error.response);
-                    resolve(error.response);
-                } else {
-                    log.error(error);
-                    reject(error);
-                }
+                log.error(error);
+                reject(error);
             });
         });
     }
