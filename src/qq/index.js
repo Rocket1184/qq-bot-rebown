@@ -35,6 +35,10 @@ class QQ {
         this.client = new Client();
     }
 
+    async run() {
+        await this.login();
+    }
+
     async login() {
         log.info('(0/5) 开始登录，准备下载二维码');
 
