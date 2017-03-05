@@ -2,11 +2,8 @@
 
 const qs = require('querystring');
 
-const Log = require('log');
 const Axios = require('axios');
 const Cookie = require('cookie');
-
-const log = new Log('debug');
 
 function logResponse(resp) {
     log.debug(`request:`);
