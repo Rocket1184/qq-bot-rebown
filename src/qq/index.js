@@ -18,7 +18,7 @@ function writeFileAsync(filePath, data, options) {
             resolve();
         });
     });
-};
+}
 
 class QQ {
     constructor() {
@@ -180,7 +180,7 @@ class QQ {
             this.getGroup()
         ]);
         log.debug(JSON.stringify(manyInfo, null, 4));
-        log.info('开始接受消息');
+        log.info('信息初始化完成，开始接收消息');
         do {
             let msgContent = await this.client.post({
                 url: URL.poll,
