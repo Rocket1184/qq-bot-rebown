@@ -22,7 +22,7 @@ module.exports = {
     referer151105: 'http://d1.web2.qq.com/proxy.html?v=20151105001&callback=1&id=2',
     referer130916: 'http://s.web2.qq.com/proxy.html?v=20130916001&callback=1&id=1',
     recentList: 'http://d1.web2.qq.com/channel/get_recent_list2',
-    selfInfo: `http://s.web2.qq.com/api/get_self_info2&t=${Math.random()}`,
+    selfInfo: `http://s.web2.qq.com/api/get_self_info2?t=${Date.now()}`,
     poll: 'http://d1.web2.qq.com/channel/poll2',
     buddyMsg: 'http://d1.web2.qq.com/channel/send_buddy_msg2',
     groupMsg: 'http://d1.web2.qq.com/channel/send_qun_msg2',
