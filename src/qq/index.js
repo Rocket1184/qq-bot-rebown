@@ -32,6 +32,9 @@ class QQ {
         this.buddy = {};
         this.discu = {};
         this.group = {};
+        this.buddyNameMap = new Map();
+        this.discuNameMap = new Map();
+        this.groupNameMap = new Map();
         this.client = new Client();
     }
 
@@ -120,6 +123,14 @@ class QQ {
         log.info('(5/5) 获取 psessionid 和 uin 成功');
     }
 
+    getSelfInfo() {
+        log.info('开始获取用户信息');
+        return this.client.get({
+            url: URL.selfInfo,
+            headers: { Referer: URL.referer130916 }
+        });
+    }
+
     getBuddy() {
         log.info('开始获取好友列表');
         return this.client.post({
@@ -135,7 +146,7 @@ class QQ {
     }
 
     getOnlineBuddies() {
-        log.info('开始获取好友在线状态');        
+        log.info('开始获取好友在线状态');
         return this.client.get({
             url: URL.onlineBuddies(this.tokens.vfwebqq, this.tokens.psessionid),
             headers: {
@@ -172,14 +183,27 @@ class QQ {
         });
     }
 
+    getBuddyName(uin) {
+        let buddyName;
+        this.buddy.marknames.some(e => e.uin == uin ? buddyName = e.markname : false);
+        if(!buddyName) this.buddy.info.some(e=> e.uin == uin? buddyName = e.nick : false);
+        this.buddyNameMap.set(uin, buddyName);
+        return buddyName;
+    }
+
     async poll() {
         let manyInfo = await Promise.all([
+            this.getSelfInfo(),
             this.getBuddy(),
             this.getOnlineBuddies(),
             this.getDiscu(),
             this.getGroup()
         ]);
         log.debug(JSON.stringify(manyInfo, null, 4));
+        this.selfInfo = manyInfo[0].result;
+        this.buddy = manyInfo[1].result;
+        this.discu = manyInfo[3].result.dnamelist;
+        this.group = manyInfo[4].result.gnamelist;
         log.info('信息初始化完成，开始接收消息');
         do {
             let msgContent = await this.client.post({
@@ -197,6 +221,7 @@ class QQ {
                 responseType: 'text',
                 validateStatus: status => status === 200 || status === 504
             });
+            log.debug(msgContent);
             try {
                 log.info(msgContent.result[0].value.content.filter(e => typeof e == 'string').join(' '));
             } catch (error) {
