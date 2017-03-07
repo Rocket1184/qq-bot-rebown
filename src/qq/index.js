@@ -18,7 +18,7 @@ function writeFileAsync(filePath, data, options) {
             resolve();
         });
     });
-};
+}
 
 class QQ {
     constructor() {
@@ -32,12 +32,16 @@ class QQ {
         this.buddy = {};
         this.discu = {};
         this.group = {};
+        this.buddyNameMap = new Map();
+        this.discuNameMap = new Map();
+        this.groupNameMap = new Map();
         this.client = new Client();
     }
 
     async run() {
         await this.login();
-        await this.poll();
+        await this.initInfo();
+        await this.loopPoll();
     }
 
     async login() {
@@ -120,6 +124,14 @@ class QQ {
         log.info('(5/5) 获取 psessionid 和 uin 成功');
     }
 
+    getSelfInfo() {
+        log.info('开始获取用户信息');
+        return this.client.get({
+            url: URL.selfInfo,
+            headers: { Referer: URL.referer130916 }
+        });
+    }
+
     getBuddy() {
         log.info('开始获取好友列表');
         return this.client.post({
@@ -135,7 +147,7 @@ class QQ {
     }
 
     getOnlineBuddies() {
-        log.info('开始获取好友在线状态');        
+        log.info('开始获取好友在线状态');
         return this.client.get({
             url: URL.onlineBuddies(this.tokens.vfwebqq, this.tokens.psessionid),
             headers: {
@@ -172,15 +184,83 @@ class QQ {
         });
     }
 
-    async poll() {
+    async initInfo() {
         let manyInfo = await Promise.all([
+            this.getSelfInfo(),
             this.getBuddy(),
             this.getOnlineBuddies(),
             this.getDiscu(),
             this.getGroup()
         ]);
         log.debug(JSON.stringify(manyInfo, null, 4));
-        log.info('开始接受消息');
+        this.selfInfo = manyInfo[0].result;
+        this.buddy = manyInfo[1].result;
+        this.discu = manyInfo[3].result.dnamelist;
+        this.group = manyInfo[4].result.gnamelist;
+        let promises = this.group.map(async e => {
+            let rawInfo = await this.getGroupInfo(e.code);
+            e.info = rawInfo.result;
+        });
+        await Promise.all(promises);
+        log.info('信息初始化完成');
+    }
+
+    getBuddyName(uin) {
+        let name = this.buddyNameMap.get(uin);
+        if (name) return name;
+        this.buddy.marknames.some(e => e.uin == uin ? name = e.markname : false);
+        if (!name) this.buddy.info.some(e => e.uin == uin ? name = e.nick : false);
+        this.buddyNameMap.set(uin, name);
+        return name;
+    }
+
+    getGroupName(groupCode) {
+        let name = this.groupNameMap.get(groupCode);
+        if (name) return name;
+        this.group.some(e => e.code == groupCode ? name = e.name : false);
+        this.groupNameMap.set(groupCode, name);
+        return name;
+    }
+
+    getGroupInfo(code) {
+        return this.client.get({
+            url: URL.groupInfo(code, this.tokens.vfwebqq),
+            headers: { Referer: URL.referer130916 }
+        });
+    }
+
+    getNameInGroup(uin, groupCode) {
+        let nameKey = `${groupCode}${uin}`;
+        let name = this.groupNameMap.get(nameKey);
+        if (name) return name;
+        let group;
+        for (let g of this.group) {
+            if (g.code == groupCode) {
+                group = g;
+                break;
+            }
+        }
+        group.info.cards.some(i => i.muin == uin ? name = i.card : false);
+        if (!name) group.info.minfo.some(i => i.uin == uin ? name = i.nick : false);
+        this.groupNameMap.set(nameKey, name);
+        return name;
+    }
+
+    logMessage(msg) {
+        let content = msg.result[0].value.content.filter(e => typeof e == 'string').join(' ');
+        switch (msg.result[0].poll_type) {
+            case 'message':
+                log.info(`[新消息] ${this.getBuddyName(msg.result[0].value.from_uin)} | ${content}`);
+                break;
+            case 'group_message':
+                log.info(`[群消息] ${this.getGroupName(msg.result[0].value.from_uin)} : ${this.getNameInGroup(msg.result[0].value.send_uin, msg.result[0].value.from_uin)} | ${content}`);
+                break;
+            case 'discu_message':
+            // log.info(`[讨论组] ${} : ${} | ${content}`);
+        }
+    }
+
+    async loopPoll() {
         do {
             let msgContent = await this.client.post({
                 url: URL.poll,
@@ -197,9 +277,11 @@ class QQ {
                 responseType: 'text',
                 validateStatus: status => status === 200 || status === 504
             });
+            log.debug(msgContent);
             try {
-                log.info(msgContent.result[0].value.content.filter(e => typeof e == 'string').join(' '));
+                this.logMessage(msgContent);
             } catch (error) {
+                log.error(error);
                 continue;
             }
         } while (true);
