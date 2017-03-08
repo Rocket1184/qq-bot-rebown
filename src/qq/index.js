@@ -201,7 +201,12 @@ class QQ {
             let rawInfo = await this.getGroupInfo(e.code);
             e.info = rawInfo.result;
         });
-        await Promise.all(promises);
+        promises = promises.concat(this.discu.map(async e => {
+            let rawInfo = await this.getDiscuInfo(e.did);
+            e.info = rawInfo.result;
+        }));
+        manyInfo = await Promise.all(promises);
+        log.debug(JSON.stringify(manyInfo, null, 4));
         log.info('信息初始化完成');
     }
 
@@ -211,6 +216,37 @@ class QQ {
         this.buddy.marknames.some(e => e.uin == uin ? name = e.markname : false);
         if (!name) this.buddy.info.some(e => e.uin == uin ? name = e.nick : false);
         this.buddyNameMap.set(uin, name);
+        return name;
+    }
+
+    getDiscuName(did) {
+        let name = this.discuNameMap.get(did);
+        if (name) return name;
+        this.discu.some(e => e.did == did ? name = e.name : false);
+        this.discuNameMap.set(did, name);
+        return name;
+    }
+
+    getDiscuInfo(did) {
+        return this.client.get({
+            url: URL.discuInfo(did, this.tokens.psessionid, this.tokens.vfwebqq),
+            headers: { Referer: URL.referer151105 }
+        });
+    }
+
+    getNameInDiscu(uin, did) {
+        let nameKey = `${did}${uin}`;
+        let name = this.discuNameMap.get(nameKey);
+        if (name) return name;
+        let discu;
+        for (let d of this.discu) {
+            if (d.did == did) {
+                discu = d;
+                break;
+            }
+        }
+        discu.info.mem_info.some(i => i.uin == uin ? name = i.nick : false);
+        this.discuNameMap.set(nameKey, name);
         return name;
     }
 
@@ -256,7 +292,7 @@ class QQ {
                 log.info(`[群消息] ${this.getGroupName(msg.result[0].value.from_uin)} : ${this.getNameInGroup(msg.result[0].value.send_uin, msg.result[0].value.from_uin)} | ${content}`);
                 break;
             case 'discu_message':
-            // log.info(`[讨论组] ${} : ${} | ${content}`);
+                log.info(`[讨论组] ${this.getDiscuName(msg.result[0].value.from_uin)} : ${this.getNameInDiscu(msg.result[0].value.send_uin, msg.result[0].value.from_uin)} | ${content}`);
         }
     }
 
@@ -282,7 +318,6 @@ class QQ {
                 this.logMessage(msgContent);
             } catch (error) {
                 log.error(error);
-                continue;
             }
         } while (true);
     }
