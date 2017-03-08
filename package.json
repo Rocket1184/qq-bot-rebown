@@ -10,7 +10,10 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
-    "qq"
+    "qq",
+    "qqbot",
+    "webqq",
+    "smartqq"
   ],
   "repository": "github:rocket1184/qq-bot-rebown",
   "author": "rocka <i@rocka.me> (https://rocka.me)",
