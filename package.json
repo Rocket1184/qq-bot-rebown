@@ -10,7 +10,10 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
-    "qq"
+    "qq",
+    "qqbot",
+    "webqq",
+    "smartqq"
   ],
   "repository": "github:rocket1184/qq-bot-rebown",
   "author": "rocka <i@rocka.me> (https://rocka.me)",
@@ -19,5 +22,8 @@
     "axios": "^0.15.3",
     "cookie": "^0.3.1",
     "log": "^1.4.0"
+  },
+  "devDependencies": {
+    "eslint": "^3.17.1"
   }
 }
