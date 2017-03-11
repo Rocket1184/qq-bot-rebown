@@ -284,15 +284,16 @@ class QQ {
 
     logMessage(msg) {
         let content = msg.result[0].value.content.filter(e => typeof e == 'string').join(' ');
+        let { from_uin, send_uin } = msg.result[0].value;
         switch (msg.result[0].poll_type) {
             case 'message':
-                log.info(`[新消息] ${this.getBuddyName(msg.result[0].value.from_uin)} | ${content}`);
+                log.info(`[新消息] ${this.getBuddyName(from_uin)} | ${content}`);
                 break;
             case 'group_message':
-                log.info(`[群消息] ${this.getGroupName(msg.result[0].value.from_uin)} : ${this.getNameInGroup(msg.result[0].value.send_uin, msg.result[0].value.from_uin)} | ${content}`);
+                log.info(`[群消息] ${this.getGroupName(from_uin)} : ${this.getNameInGroup(send_uin, from_uin)} | ${content}`);
                 break;
             case 'discu_message':
-                log.info(`[讨论组] ${this.getDiscuName(msg.result[0].value.from_uin)} : ${this.getNameInDiscu(msg.result[0].value.send_uin, msg.result[0].value.from_uin)} | ${content}`);
+                log.info(`[讨论组] ${this.getDiscuName(from_uin)} : ${this.getNameInDiscu(send_uin, from_uin)} | ${content}`);
         }
     }
 
