@@ -283,6 +283,7 @@ class QQ {
     }
 
     logMessage(msg) {
+        if (typeof msg === 'string') return;
         let content = msg.result[0].value.content.filter(e => typeof e == 'string').join(' ');
         let { from_uin, send_uin } = msg.result[0].value;
         switch (msg.result[0].poll_type) {
@@ -298,6 +299,7 @@ class QQ {
     }
 
     async loopPoll() {
+        log.info('开始接收消息...');
         do {
             let msgContent = await this.client.post({
                 url: URL.poll,
