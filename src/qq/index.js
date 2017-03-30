@@ -5,6 +5,7 @@ const fs = require('fs');
 const URL = require('./url');
 const Codec = require('../codec');
 const Client = require('../httpclient');
+const MessageAgent = require('./message-agent');
 
 const AppConfig = {
     clientid: 53999199,
@@ -21,7 +22,7 @@ function writeFileAsync(filePath, data, options) {
 }
 
 class QQ {
-    constructor() {
+    constructor(...msgHandlers) {
         this.tokens = {
             uin: '',
             ptwebqq: '',
@@ -36,6 +37,8 @@ class QQ {
         this.discuNameMap = new Map();
         this.groupNameMap = new Map();
         this.client = new Client();
+        this.messageAgent = null;
+        this.msgHandlers = msgHandlers;
     }
 
     async run() {
@@ -121,6 +124,9 @@ class QQ {
         log.debug(loginStat);
         this.tokens.uin = loginStat.result.uin;
         this.tokens.psessionid = loginStat.result.psessionid;
+        this.messageAgent = new MessageAgent({
+            psessionid: this.tokens.psessionid
+        });
         log.info('(5/5) 获取 psessionid 和 uin 成功');
     }
 
@@ -253,7 +259,7 @@ class QQ {
     getGroupName(groupCode) {
         let name = this.groupNameMap.get(groupCode);
         if (name) return name;
-        this.group.some(e => e.code == groupCode ? name = e.name : false);
+        this.group.some(e => e.gid == groupCode ? name = e.name : false);
         this.groupNameMap.set(groupCode, name);
         return name;
     }
@@ -271,7 +277,7 @@ class QQ {
         if (name) return name;
         let group;
         for (let g of this.group) {
-            if (g.code == groupCode) {
+            if (g.gid == groupCode) {
                 group = g;
                 break;
             }
@@ -298,6 +304,34 @@ class QQ {
         }
     }
 
+    handelMsgRecv(msg) {
+        if (typeof msg === 'string') return;
+        let content = msg.result[0].value.content.filter(e => typeof e == 'string').join(' ');
+        let { from_uin, send_uin } = msg.result[0].value;
+        let msgParsed = { content };
+        switch (msg.result[0].poll_type) {
+            case 'message':
+                msgParsed.type = 'buddy';
+                msgParsed.id = from_uin;
+                msgParsed.name = this.getBuddyName(from_uin);
+                break;
+            case 'group_message':
+                msgParsed.type = 'group';
+                msgParsed.id = send_uin;
+                msgParsed.name = this.getNameInGroup(send_uin, from_uin);
+                msgParsed.groupId = from_uin;
+                msgParsed.groupName = this.getGroupName(from_uin);
+                break;
+            case 'discu_message':
+                msgParsed.type = 'discu';
+                msgParsed.id = send_uin;
+                msgParsed.name = this.getNameInDiscu(send_uin, from_uin);
+                msgParsed.discuId = from_uin;
+                msgParsed.discuName = this.getDiscuName(from_uin);
+        }
+        this.msgHandlers.forEach(handler => handler.tryHandle(msgParsed, this));
+    }
+
     async loopPoll() {
         log.info('开始接收消息...');
         do {
@@ -319,10 +353,42 @@ class QQ {
             log.debug(msgContent);
             try {
                 this.logMessage(msgContent);
+                this.handelMsgRecv(msgContent);
             } catch (error) {
                 log.error(error);
             }
         } while (true);
+    }
+
+    async innerSendMsg(url, key, id, content) {
+        const resp = await this.client.post({
+            url,
+            data: this.messageAgent.build(key, id, content),
+            headers: { Referer: URL.referer151105 }
+        });
+        log.debug(resp);
+        return resp;
+    }
+
+    async sendBuddyMsg(uin, content) {
+        const resp = await this.innerSendMsg(URL.buddyMsg, 'buddy', uin, content);
+        if (resp.errCode === 0) {
+            log.info(`发消息给好友 ${this.getBuddyName(uin)} : ${content}`);
+        }
+    }
+
+    async sendDiscuMsg(did, content) {
+        const resp = await this.innerSendMsg(URL.discuMsg, 'discu', did, content);
+        if (resp.errCode === 0) {
+            log.info(`发消息给讨论组 ${this.getDiscuName(did)} : ${content}`);
+        }
+    }
+
+    async sendGroupMsg(gid, content) {
+        const resp = await this.innerSendMsg(URL.groupMsg, 'group', gid, content);
+        if (resp.errCode === 0) {
+            log.info(`发消息给群 ${this.getGroupName(gid)} : ${content}`);
+        }
     }
 }
 
