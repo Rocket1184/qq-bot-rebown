@@ -367,28 +367,30 @@ class QQ {
             headers: { Referer: URL.referer151105 }
         });
         log.debug(resp);
+        /* it returns 
+         * { errmsg: 'error!!!', retcode: 100100 }
+         * when success, i don't know why.
+         * fxxk tencent
+         */
         return resp;
     }
 
     async sendBuddyMsg(uin, content) {
         const resp = await this.innerSendMsg(URL.buddyMsg, 'buddy', uin, content);
-        if (resp.errCode === 0) {
-            log.info(`发消息给好友 ${this.getBuddyName(uin)} : ${content}`);
-        }
+        log.info(`发消息给好友 ${this.getBuddyName(uin)} : ${content}`);
+        return resp;
     }
 
     async sendDiscuMsg(did, content) {
         const resp = await this.innerSendMsg(URL.discuMsg, 'discu', did, content);
-        if (resp.errCode === 0) {
-            log.info(`发消息给讨论组 ${this.getDiscuName(did)} : ${content}`);
-        }
+        log.info(`发消息给讨论组 ${this.getDiscuName(did)} : ${content}`);
+        return resp;
     }
 
     async sendGroupMsg(gid, content) {
         const resp = await this.innerSendMsg(URL.groupMsg, 'group', gid, content);
-        if (resp.errCode === 0) {
-            log.info(`发消息给群 ${this.getGroupName(gid)} : ${content}`);
-        }
+        log.info(`发消息给群 ${this.getGroupName(gid)} : ${content}`);
+        return resp;
     }
 }
 
