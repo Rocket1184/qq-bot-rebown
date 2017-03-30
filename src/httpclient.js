@@ -17,7 +17,7 @@ class HttpClient {
     constructor() {
         this.cookie = {};
     }
-    
+
     get clientHeaders() {
         return {
             Cookie: this.getCookieString(),
