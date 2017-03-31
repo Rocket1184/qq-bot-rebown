@@ -71,7 +71,7 @@ class MsgHandler{
          *     content: 消息内容
          * }
          *
-         * 第二个参数 QQ 为当然运行的 QQ 实列，可以使用其中所有方法
+         * 第二个参数 QQ 为当前运行的 QQ 实列，可以使用其中所有方法
          */
         handler: function(msg, QQ),
         /*
