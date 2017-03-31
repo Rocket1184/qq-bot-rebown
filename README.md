@@ -26,7 +26,7 @@ const MsgHandler = require('./src/qq/msg-handler');
 const fooHandler = new MsgHandler(
     // 收到消息后的处理函数，可用 async function
     (msg, QQ) => {
-        QQ.sendBuddyMessage(msg.id, `Hello ${msg.name}`);
+        QQ.sendBuddyMsg(msg.id, `Hello ${msg.name}`);
     },
     // 该 handler 可处理的消息类型
     'buddy', 'discu'
