@@ -1,5 +1,7 @@
 # qq-bot-rebown
 
+[![dependencies status](https://david-dm.org/rocket1184/qq-bot-rebown/status.svg)](https://david-dm.org/rocket1184/qq-bot-rebown)
+
 使用  ES7 `async/await` 语法编写的 Web QQ 机器人。
 
 ## Features
