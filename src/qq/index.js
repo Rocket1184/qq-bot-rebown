@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const Log = require('log');
+const childProcess = require('child_process');
 
 const URL = require('./url');
 const Codec = require('../codec');
@@ -9,6 +10,9 @@ const Client = require('../httpclient');
 const MessageAgent = require('./message-agent');
 
 const log = global.log || new Log(process.env.LOG_LEVEL || 'info');
+
+const cookiePath = process.env.COOKIE_PATH || '/tmp/qq-bot.cookie';
+const qrcodePath = process.env.QRCODE_PATH || '/tmp/code.png';
 
 const AppConfig = {
     clientid: 53999199,
@@ -51,55 +55,72 @@ class QQ {
     }
 
     async login() {
-        log.info('(0/5) 开始登录，准备下载二维码');
-
-        // Step0: prepare cookies, pgv_info and pgv_pvid
-        // http://pingjs.qq.com/tcss.ping.js  tcss.run & _cookie.init
-        let initCookies = {
-            pgv_info: `ssid=s${Codec.randPgv()}`,
-            pgv_pvid: Codec.randPgv()
-        };
-        this.client.setCookie(initCookies);
-        await this.client.get(URL.loginPrepare);
-
-        // Step1: download QRcode
-        let qrCode = await this.client.get({ url: URL.qrcode, responseType: 'arraybuffer' });
-        await writeFileAsync('/tmp/code.png', qrCode, 'binary');
-        log.info('(1/5) 二维码下载完成，等待扫描');
-        // open file, only for linux
-        require('child_process').exec('xdg-open /tmp/code.png');
-
-        // Step2: 
-        let scanSuccess = false;
-        let quotRegxp = /'[^,]*'/g;
-        let ptqrloginURL = URL.getPtqrloginURL(this.client.getCookie('qrsig'));
-        let ptlogin4URL;
-        do {
-            let responseBody = await this.client.get({
-                url: ptqrloginURL,
-                headers: { Referer: URL.ptqrloginReferer },
-            });
-            log.debug(responseBody);
-            let arr = responseBody.match(quotRegxp).map(i => i.substring(1, i.length - 1));
-            if (arr[0] === '0') {
-                scanSuccess = true;
-                ptlogin4URL = arr[2];
+        beforeGotVfwebqq: {
+            if (fs.existsSync(cookiePath)) {
+                try {
+                    const cookieText = fs.readFileSync(cookiePath, 'utf-8').toString();
+                    log.info('(-/5) 检测到 cookie 文件，尝试自动登录');
+                    this.tokens.ptwebqq = cookieText.match(/ptwebqq=(.+?);/)[1];
+                    this.client.setCookie(cookieText);
+                    // skip this label if found cookie, goto Step4
+                    // TODO: fallback normal login when cookie not valid
+                    break beforeGotVfwebqq;
+                } catch (err) {
+                    this.tokens.ptwebqq = '';
+                    childProcess.exec(`rm ${cookiePath}`);
+                    log.info('(-/5) Cookie 文件非法，自动登录失败');
+                }
             }
-        } while (!scanSuccess);
-        log.info('(2/5) 二维码扫描完成');
-        // remove file, for linux(or macOS ?)
-        require('child_process').exec('rm /tmp/code.png');
+            log.info('(0/5) 开始登录，准备下载二维码');
 
-        // Step3: find token 'vfwebqq' in cookie
-        // NOTICE: the request returns 302 when success. DO NOT REJECT 302.
-        await this.client.get({
-            url: ptlogin4URL,
-            maxRedirects: 0,     // Axios follows redirect automatically, but we need to disable it here.
-            validateStatus: status => status === 302,
-            headers: { Referer: URL.ptlogin4Referer }
-        });
-        this.tokens.ptwebqq = this.client.getCookie('ptwebqq');
-        log.info('(3/5) 获取 ptwebqq 成功');
+            // Step0: prepare cookies, pgv_info and pgv_pvid
+            // http://pingjs.qq.com/tcss.ping.js  tcss.run & _cookie.init
+            let initCookies = {
+                pgv_info: `ssid=s${Codec.randPgv()}`,
+                pgv_pvid: Codec.randPgv()
+            };
+            this.client.setCookie(initCookies);
+            await this.client.get(URL.loginPrepare);
+
+            // Step1: download QRcode
+            let qrCode = await this.client.get({ url: URL.qrcode, responseType: 'arraybuffer' });
+            await writeFileAsync(qrcodePath, qrCode, 'binary');
+            log.info('(1/5) 二维码下载完成，等待扫描');
+            // open file, only for linux
+            childProcess.exec(`xdg-open ${qrcodePath}`);
+
+            // Step2: 
+            let scanSuccess = false;
+            let quotRegxp = /'[^,]*'/g;
+            let ptqrloginURL = URL.getPtqrloginURL(this.client.getCookie('qrsig'));
+            let ptlogin4URL;
+            do {
+                let responseBody = await this.client.get({
+                    url: ptqrloginURL,
+                    headers: { Referer: URL.ptqrloginReferer },
+                });
+                log.debug(responseBody);
+                let arr = responseBody.match(quotRegxp).map(i => i.substring(1, i.length - 1));
+                if (arr[0] === '0') {
+                    scanSuccess = true;
+                    ptlogin4URL = arr[2];
+                }
+            } while (!scanSuccess);
+            log.info('(2/5) 二维码扫描完成');
+            // remove file, for linux(or macOS ?)
+            childProcess.exec(`rm ${qrcodePath}`);
+
+            // Step3: find token 'vfwebqq' in cookie
+            // NOTICE: the request returns 302 when success. DO NOT REJECT 302.
+            await this.client.get({
+                url: ptlogin4URL,
+                maxRedirects: 0,     // Axios follows redirect automatically, but we need to disable it here.
+                validateStatus: status => status === 302,
+                headers: { Referer: URL.ptlogin4Referer }
+            });
+            this.tokens.ptwebqq = this.client.getCookie('ptwebqq');
+            log.info('(3/5) 获取 ptwebqq 成功');
+        } // ========== label 'beforeGotVfwebqq' ends here ==========
 
         // Step4: request token 'vfwebqq'
         let vfwebqqResp = await this.client.get({
@@ -131,6 +152,8 @@ class QQ {
             psessionid: this.tokens.psessionid
         });
         log.info('(5/5) 获取 psessionid 和 uin 成功');
+        const cookie = await this.client.getCookieString();
+        fs.writeFile(cookiePath, cookie, 'utf-8', () => log.info(`保存 Cookie 到 ${cookiePath}`));
     }
 
     getSelfInfo() {
