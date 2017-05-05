@@ -19,7 +19,7 @@
   "author": "rocka <i@rocka.me> (https://rocka.me)",
   "license": "MIT",
   "dependencies": {
-    "axios": "^0.16.0",
+    "axios": "^0.16.1",
     "cookie": "^0.3.1",
     "log": "^1.4.0"
   }
