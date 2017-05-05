@@ -1,9 +1,12 @@
 'use strict';
 
 const qs = require('querystring');
+const Log = require('log');
 
 const Axios = require('axios');
 const Cookie = require('cookie');
+
+const log = global.log || new Log(process.env.LOG_LEVEL || 'info');
 
 function logResponse(resp) {
     log.debug(`request:`);

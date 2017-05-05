@@ -1,11 +1,14 @@
 'use strict';
 
 const fs = require('fs');
+const Log = require('log');
 
 const URL = require('./url');
 const Codec = require('../codec');
 const Client = require('../httpclient');
 const MessageAgent = require('./message-agent');
+
+const log = global.log || new Log(process.env.LOG_LEVEL || 'info');
 
 const AppConfig = {
     clientid: 53999199,
