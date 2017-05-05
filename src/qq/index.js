@@ -289,7 +289,6 @@ class QQ {
     }
 
     logMessage(msg) {
-        if (typeof msg === 'string') return;
         let content = msg.result[0].value.content.filter(e => typeof e == 'string').join(' ');
         let { from_uin, send_uin } = msg.result[0].value;
         switch (msg.result[0].poll_type) {
@@ -305,7 +304,6 @@ class QQ {
     }
 
     handelMsgRecv(msg) {
-        if (typeof msg === 'string') return;
         let content = msg.result[0].value.content.filter(e => typeof e == 'string').join(' ');
         let { from_uin, send_uin } = msg.result[0].value;
         let msgParsed = { content };
@@ -351,11 +349,13 @@ class QQ {
                 validateStatus: status => status === 200 || status === 504
             });
             log.debug(msgContent);
-            try {
-                this.logMessage(msgContent);
-                this.handelMsgRecv(msgContent);
-            } catch (error) {
-                log.error(error);
+            if (msgContent.result) {
+                try {
+                    this.logMessage(msgContent);
+                    this.handelMsgRecv(msgContent);
+                } catch (error) {
+                    log.error(error);
+                }
             }
         } while (true);
     }
