@@ -33,7 +33,7 @@ function shortenUrl(url) {
             res.on('data', data => chunks += data);
             res.on('end', () => {
                 response = JSON.parse(chunks);
-                if (response.err_code) {
+                if (response.error_code) {
                     reject(response.error);
                 } else {
                     if (response.length === 1) {
