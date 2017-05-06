@@ -63,7 +63,6 @@ class QQ {
                     this.tokens.ptwebqq = cookieText.match(/ptwebqq=(.+?);/)[1];
                     this.client.setCookie(cookieText);
                     // skip this label if found cookie, goto Step4
-                    // TODO: fallback normal login when cookie not valid
                     break beforeGotVfwebqq;
                 } catch (err) {
                     this.tokens.ptwebqq = '';
@@ -75,7 +74,7 @@ class QQ {
 
             // Step0: prepare cookies, pgv_info and pgv_pvid
             // http://pingjs.qq.com/tcss.ping.js  tcss.run & _cookie.init
-            let initCookies = {
+            const initCookies = {
                 pgv_info: `ssid=s${Codec.randPgv()}`,
                 pgv_pvid: Codec.randPgv()
             };
@@ -83,24 +82,24 @@ class QQ {
             await this.client.get(URL.loginPrepare);
 
             // Step1: download QRcode
-            let qrCode = await this.client.get({ url: URL.qrcode, responseType: 'arraybuffer' });
+            const qrCode = await this.client.get({ url: URL.qrcode, responseType: 'arraybuffer' });
             await writeFileAsync(qrcodePath, qrCode, 'binary');
-            log.info('(1/5) 二维码下载完成，等待扫描');
+            log.info(`(1/5) 二维码下载到 ${qrcodePath} ，等待扫描`);
             // open file, only for linux
             childProcess.exec(`xdg-open ${qrcodePath}`);
 
             // Step2: 
             let scanSuccess = false;
-            let quotRegxp = /'[^,]*'/g;
-            let ptqrloginURL = URL.getPtqrloginURL(this.client.getCookie('qrsig'));
+            const quotRegxp = /'[^,]*'/g;
+            const ptqrloginURL = URL.getPtqrloginURL(this.client.getCookie('qrsig'));
             let ptlogin4URL;
             do {
-                let responseBody = await this.client.get({
+                const responseBody = await this.client.get({
                     url: ptqrloginURL,
                     headers: { Referer: URL.ptqrloginReferer },
                 });
                 log.debug(responseBody);
-                let arr = responseBody.match(quotRegxp).map(i => i.substring(1, i.length - 1));
+                const arr = responseBody.match(quotRegxp).map(i => i.substring(1, i.length - 1));
                 if (arr[0] === '0') {
                     scanSuccess = true;
                     ptlogin4URL = arr[2];
@@ -123,16 +122,21 @@ class QQ {
         } // ========== label 'beforeGotVfwebqq' ends here ==========
 
         // Step4: request token 'vfwebqq'
-        let vfwebqqResp = await this.client.get({
+        const vfwebqqResp = await this.client.get({
             url: URL.getVfwebqqURL(this.tokens.ptwebqq),
             headers: { Referer: URL.vfwebqqReferer }
         });
         log.debug(vfwebqqResp);
-        this.tokens.vfwebqq = vfwebqqResp.result.vfwebqq;
-        log.info('(4/5) 获取 vfwebqq 成功');
-
+        try {
+            this.tokens.vfwebqq = vfwebqqResp.result.vfwebqq;
+            log.info('(4/5) 获取 vfwebqq 成功');
+        } catch (err) {
+            childProcess.execSync(`rm ${cookiePath}`);
+            log.info('(-/5) Cookie 已失效，切换到扫码登录');
+            return this.login();
+        }
         // Step5: psessionid and uin
-        let loginStat = await this.client.post({
+        const loginStat = await this.client.post({
             url: URL.login2,
             data: {
                 ptwebqq: this.tokens.ptwebqq,
@@ -230,11 +234,11 @@ class QQ {
         this.discu = manyInfo[3].result.dnamelist;
         this.group = manyInfo[4].result.gnamelist;
         let promises = this.group.map(async e => {
-            let rawInfo = await this.getGroupInfo(e.code);
+            const rawInfo = await this.getGroupInfo(e.code);
             e.info = rawInfo.result;
         });
         promises = promises.concat(this.discu.map(async e => {
-            let rawInfo = await this.getDiscuInfo(e.did);
+            const rawInfo = await this.getDiscuInfo(e.did);
             e.info = rawInfo.result;
         }));
         manyInfo = await Promise.all(promises);
@@ -267,7 +271,7 @@ class QQ {
     }
 
     getNameInDiscu(uin, did) {
-        let nameKey = `${did}${uin}`;
+        const nameKey = `${did}${uin}`;
         let name = this.discuNameMap.get(nameKey);
         if (name) return name;
         let discu;
@@ -298,7 +302,7 @@ class QQ {
     }
 
     getNameInGroup(uin, groupCode) {
-        let nameKey = `${groupCode}${uin}`;
+        const nameKey = `${groupCode}${uin}`;
         let name = this.groupNameMap.get(nameKey);
         if (name) return name;
         let group;
@@ -315,8 +319,8 @@ class QQ {
     }
 
     logMessage(msg) {
-        let content = msg.result[0].value.content.filter(e => typeof e == 'string').join(' ');
-        let { from_uin, send_uin } = msg.result[0].value;
+        const content = msg.result[0].value.content.filter(e => typeof e == 'string').join(' ');
+        const { from_uin, send_uin } = msg.result[0].value;
         switch (msg.result[0].poll_type) {
             case 'message':
                 log.info(`[新消息] ${this.getBuddyName(from_uin)} | ${content}`);
@@ -330,8 +334,8 @@ class QQ {
     }
 
     handelMsgRecv(msg) {
-        let content = msg.result[0].value.content.filter(e => typeof e == 'string').join(' ');
-        let { from_uin, send_uin } = msg.result[0].value;
+        const content = msg.result[0].value.content.filter(e => typeof e == 'string').join(' ');
+        const { from_uin, send_uin } = msg.result[0].value;
         let msgParsed = { content };
         switch (msg.result[0].poll_type) {
             case 'message':
@@ -359,7 +363,7 @@ class QQ {
     async loopPoll() {
         log.info('开始接收消息...');
         do {
-            let msgContent = await this.client.post({
+            const msgContent = await this.client.post({
                 url: URL.poll,
                 data: {
                     ptwebqq: this.tokens.ptwebqq,
