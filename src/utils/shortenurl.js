@@ -12,8 +12,9 @@ const http = require('http');
 
 function shortenUrl(url) {
     let path = '';
+    const argIsArray = Array.isArray(url);
 
-    if (Array.isArray(url)) {
+    if (argIsArray) {
         path = url.reduce((a, b) => `${a}&url_long=${b}`, '');
     } else {
         path = `&url_long=${url}`;
@@ -36,7 +37,7 @@ function shortenUrl(url) {
                 if (response.error_code) {
                     reject(response.error);
                 } else {
-                    if (response.length === 1) {
+                    if (!argIsArray) {
                         resolve(response[0].url_short);
                     } else {
                         resolve(response.map(r => r.url_short));
