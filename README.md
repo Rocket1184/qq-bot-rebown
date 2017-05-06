@@ -7,8 +7,10 @@
 ## Features
 
  - 扫码登录 ~~目前唯一可用的登录方法~~
+ - 使用最近一次登录过的 Cookie 自动登录
  - 记录每条收到的消息以及发送者
  - 可自定义的 `MsgHandler`
+ - 缩短 URL (使用 [t.cn](http://open.weibo.com/wiki/2/short_url/shorten) 短链接服务)
 
 ## Usage
 
@@ -16,7 +18,9 @@
  2. （可选）编辑 `index.js` 文件，加入自定义的 `MsgHandler`。
  3. 运行程序，扫码登录即可
 
-## 自定义 MsgHandler
+## Docs
+
+### 自定义 MsgHandler
 
 示列： 编辑 `index.js`
 
@@ -27,8 +31,8 @@ const MsgHandler = require('./src/qq/msg-handler');
 // 实例化 MsgHandler
 const fooHandler = new MsgHandler(
     // 收到消息后的处理函数，可用 async function
-    (msg, QQ) => {
-        QQ.sendBuddyMsg(msg.id, `Hello ${msg.name}`);
+    (msg, qq) => {
+        qq.sendBuddyMsg(msg.id, `Hello ${msg.name}`);
     },
     // 该 handler 可处理的消息类型
     'buddy', 'discu'
@@ -38,11 +42,23 @@ const fooHandler = new MsgHandler(
 new QQ(fooHandler).run();
 ```
 
-详细示例请参考 [index.js](./index.js)
+详细示例请参考 [index.js](./index.js) 以及 [API Reference](#MsgHandler_API_Reference)
 
-## API Reference
+### 短链接 API
 
 ```js
+const shortenUrl = require('./src/utils/shortenurl');
+
+shortenUrl('https://github.com').then(console.log);
+//http://t.cn/RxnlTYR
+
+shortenUrl(['https://gitlab.com', 'https://gist.github.com']).then(console.log);
+// [ 'http://t.cn/RhJnX41', 'http://t.cn/amvA44' ]
+```
+
+<h3 id="MsgHandler_API_Reference">MsgHandler API Reference</h3>
+
+```ts
 class MsgHandler{
     constructor(
         /*
@@ -75,13 +91,14 @@ class MsgHandler{
          *
          * 第二个参数 QQ 为当前运行的 QQ 实列，可以使用其中所有方法
          */
-        handler: function(msg, QQ),
+        handler: (msg: ReceivedMsgType, qq: QQ) => Promise<void>,
+
         /*
          * 此 handler 处理的消息类型，按顺序填写即可
          * 可选 'buddy', 'discu', 'group'
          * 不写的话不会处理任何消息
          */
-        ...acceptTypes
+        ...acceptTypes?: Array<String>
     );
 }
 
