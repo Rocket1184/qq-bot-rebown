@@ -25,8 +25,8 @@
 示列： 编辑 `index.js`
 
 ```js
-// 引入 MsgHandler 类
-const MsgHandler = require('./src/qq/msg-handler');
+// 导入模块
+const { QQ, MsgHandler } = require('qq-bot-rebown');
 
 // 实例化 MsgHandler
 const fooHandler = new MsgHandler(
@@ -42,12 +42,12 @@ const fooHandler = new MsgHandler(
 new QQ(fooHandler).run();
 ```
 
-详细示例请参考 [index.js](./index.js) 以及 [API Reference](#MsgHandler_API_Reference)
+详细示例请参考 [example.js](./example.js) 以及 [API Reference](#MsgHandler_API_Reference)
 
 ### 短链接 API
 
 ```js
-const shortenUrl = require('./src/utils/shortenurl');
+const { shortenUrl } = require('qq-bot-rebown');
 
 shortenUrl('https://github.com').then(console.log);
 //http://t.cn/RxnlTYR
