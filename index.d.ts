@@ -1,7 +1,5 @@
 import * as Axios from 'axios';
 
-import MsgHandler from './msg-handler';
-
 interface BaseResponse {
     retcode: Number
     result: any
@@ -76,7 +74,7 @@ interface GroupDetailInfo {
         u: Number,
         is_vip: Number
     }>
-};
+}
 
 interface DiscuDetailInfo {
     info: {
@@ -96,7 +94,7 @@ interface DiscuDetailInfo {
         status: String,
         uin: Number
     }>
-};
+}
 
 export class QQ {
     constructor(...handlers: Array<MsgHandler>)
@@ -201,7 +199,7 @@ interface ClientRequestConfig extends Axios.AxiosRequestConfig {
 }
 
 export class HttpClient {
-    get clientHeaders(): { Cookie: String, 'User-Agent': String }
+    clientHeaders: { Cookie: String, 'User-Agent': String }
     setCookie(arg: String | Object): void
     updateCookie(arg: String | Array<String>): void
     getCookie(key?: String): void
