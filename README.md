@@ -17,11 +17,13 @@
 ## Usage
 
 1. 安装为依赖
+
 ```bash
 $ npm install qq-bot-rebown -S 
 ```
 
 2. 在脚本中引用
+
 ```js
 const { QQ } = require('qq-bot-rebown');
 
@@ -30,9 +32,7 @@ const { QQ } = require('qq-bot-rebown');
 
 ## Docs
 
-### 自定义 MsgHandler
-
-示列： 编辑 `index.js`
+### 使用 MsgHandler
 
 ```js
 // 导入模块
@@ -52,21 +52,9 @@ const fooHandler = new MsgHandler(
 new QQ(fooHandler).run();
 ```
 
-详细示例请参考 [example.js](./example.js) 以及 [API Reference](#MsgHandler_API_Reference)
+详细示例请参考 [example.js](./example.js)
 
-### 短链接 API
-
-```js
-const { shortenUrl } = require('qq-bot-rebown');
-
-shortenUrl('https://github.com').then(console.log);
-//http://t.cn/RxnlTYR
-
-shortenUrl(['https://gitlab.com', 'https://gist.github.com']).then(console.log);
-// [ 'http://t.cn/RhJnX41', 'http://t.cn/amvA44' ]
-```
-
-<h3 id="MsgHandler_API_Reference">MsgHandler API Reference</h3>
+### MsgHandler API Reference
 
 ```ts
 interface ReceivedMsgType {
@@ -86,4 +74,16 @@ class MsgHandler {
         ...acceptTypes: Array<'buddy' | 'discu' | 'group'>
     );
 }
+```
+
+### 短链接 API
+
+```js
+const { ShortenUrl } = require('qq-bot-rebown');
+
+ShortenUrl('https://github.com').then(console.log);
+//http://t.cn/RxnlTYR
+
+ShortenUrl(['https://gitlab.com', 'https://gist.github.com']).then(console.log);
+// [ 'http://t.cn/RhJnX41', 'http://t.cn/amvA44' ]
 ```
