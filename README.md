@@ -1,5 +1,6 @@
 # qq-bot-rebown
 
+[![npm version](https://img.shields.io/npm/v/npm.svg)](https://badge.fury.io/js/qq-bot-rebown)
 [![dependencies status](https://david-dm.org/rocket1184/qq-bot-rebown/status.svg)](https://david-dm.org/rocket1184/qq-bot-rebown)
 
 使用  ES7 `async/await` 语法编写的 Web QQ 机器人。
@@ -11,12 +12,21 @@
  - 记录每条收到的消息以及发送者
  - 可自定义的 `MsgHandler`
  - 缩短 URL (使用 [t.cn](http://open.weibo.com/wiki/2/short_url/shorten) 短链接服务)
+ - **对所有数据提供 .d.ts 类型定义**
 
 ## Usage
 
- 1. 下载源码包或克隆 git 仓库
- 2. （可选）编辑 `index.js` 文件，加入自定义的 `MsgHandler`。
- 3. 运行程序，扫码登录即可
+1. 安装为依赖
+```bash
+$ npm install qq-bot-rebown -S 
+```
+
+2. 在脚本中引用
+```js
+const { QQ } = require('qq-bot-rebown');
+
+// do what you want then...
+```
 
 ## Docs
 
@@ -59,48 +69,21 @@ shortenUrl(['https://gitlab.com', 'https://gist.github.com']).then(console.log);
 <h3 id="MsgHandler_API_Reference">MsgHandler API Reference</h3>
 
 ```ts
-class MsgHandler{
-    constructor(
-        /*
-         * 第一个参数 msg 为收到的消息对象。根据发送者的不同，分为三种：
-         * 好友消息（buddy）: 
-         * {
-         *     type: 'buddy'
-         *     id: 用户 uin ，发送私聊消息使用，不是 QQ 号
-         *     name: 昵称或备注名
-         *     content: 消息内容
-         * }
-         * 讨论组消息（discu）: 
-         * {
-         *     type: 'discu'
-         *     id: 用户 uin ，发送私聊消息使用，不是 QQ 号
-         *     name: 昵称
-         *     discuId: 讨论组 did
-         *     discuName: 讨论组名字
-         *     content: 消息内容
-         * }
-         * 群消息（group）: 
-         * {
-         *     type: 'group'
-         *     id: 用户 uin ，发送私聊消息使用，不是 QQ 号
-         *     name: 昵称或群名片
-         *     groupId: QQ群 gid ，不是群号
-         *     groupName: 群名字
-         *     content: 消息内容
-         * }
-         *
-         * 第二个参数 QQ 为当前运行的 QQ 实列，可以使用其中所有方法
-         */
-        handler: (msg: ReceivedMsgType, qq: QQ) => Promise<void>,
-
-        /*
-         * 此 handler 处理的消息类型，按顺序填写即可
-         * 可选 'buddy', 'discu', 'group'
-         * 不写的话不会处理任何消息
-         */
-        ...acceptTypes?: Array<String>
-    );
+interface ReceivedMsgType {
+    id: Number
+    name: String
+    type: 'buddy' | 'discu' | 'group'
+    content: String
+    groupId?: String
+    groupName?: String
+    disucId?: String
+    discuName?: String
 }
 
+class MsgHandler {
+    constructor(
+        handler: (msg: ReceivedMsgType, qq: QQ) => void,
+        ...acceptTypes: Array<'buddy' | 'discu' | 'group'>
+    );
+}
 ```
-
