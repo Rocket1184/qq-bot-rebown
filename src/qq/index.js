@@ -390,7 +390,7 @@ class QQ {
                 }
             }
             log.debug(msgContent);
-            if (msgContent.data.retcode && msgContent.data.retcode === 103) {
+            if (msgContent.retcode && msgContent.retcode === 103) {
                 this.getOnlineBuddies();
             } else if (msgContent.result) {
                 try {
