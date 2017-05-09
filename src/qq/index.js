@@ -362,24 +362,37 @@ class QQ {
 
     async loopPoll() {
         log.info('开始接收消息...');
+        let failCnt = 0;
         do {
-            const msgContent = await this.client.post({
-                url: URL.poll,
-                data: {
-                    ptwebqq: this.tokens.ptwebqq,
-                    clientid: AppConfig.clientid,
-                    psessionid: this.tokens.psessionid,
-                    key: ''
-                },
-                headers: {
-                    Origin: URL.msgOrigin,
-                    Referer: URL.referer151105
-                },
-                responseType: 'text',
-                validateStatus: status => status === 200 || status === 504
-            });
+            let msgContent;
+            try {
+                msgContent = await this.client.post({
+                    url: URL.poll,
+                    data: {
+                        ptwebqq: this.tokens.ptwebqq,
+                        clientid: AppConfig.clientid,
+                        psessionid: this.tokens.psessionid,
+                        key: ''
+                    },
+                    headers: {
+                        Origin: URL.msgOrigin,
+                        Referer: URL.referer151105
+                    },
+                    responseType: 'text',
+                    validateStatus: status => status === 200 || status === 504
+                });
+                if (failCnt > 0) failCnt = 0;
+            } catch (err) {
+                if (err.response.status === 502) failCnt++;
+                if (failCnt > 10) {
+                    log.error(`服务器 502 错误超过 ${failCnt} 次，连接已断开`);
+                    return;
+                }
+            }
             log.debug(msgContent);
-            if (msgContent.result) {
+            if (msgContent.data.retcode && msgContent.data.retcode === 103) {
+                this.getOnlineBuddies();
+            } else if (msgContent.result) {
                 try {
                     this.logMessage(msgContent);
                     this.handelMsgRecv(msgContent);
