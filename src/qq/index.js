@@ -235,11 +235,11 @@ class QQ {
         this.group = manyInfo[4].result.gnamelist;
         let promises = this.group.map(async e => {
             const rawInfo = await this.getGroupInfo(e.code);
-            e.info = rawInfo.result;
+            return e.info = rawInfo.result;
         });
         promises = promises.concat(this.discu.map(async e => {
             const rawInfo = await this.getDiscuInfo(e.did);
-            e.info = rawInfo.result;
+            return e.info = rawInfo.result;
         }));
         manyInfo = await Promise.all(promises);
         log.debug(JSON.stringify(manyInfo, null, 4));
@@ -383,6 +383,7 @@ class QQ {
                 });
                 if (failCnt > 0) failCnt = 0;
             } catch (err) {
+                console.error(err);
                 if (err.response.status === 502) failCnt++;
                 if (failCnt > 10) {
                     log.error(`服务器 502 错误超过 ${failCnt} 次，连接已断开`);
