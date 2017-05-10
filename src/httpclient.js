@@ -8,12 +8,18 @@ const Cookie = require('cookie');
 
 const log = global.log || new Log(process.env.LOG_LEVEL || 'info');
 
+function transformHeaders(k, v) {
+    if (k === 'Cookie') {
+        return Cookie.parse(v);
+    } else return v;
+}
+
 function logResponse(resp) {
-    log.debug(`request:`);
-    log.debug(JSON.stringify(resp.config, null, 4));
-    log.debug(`status: ${resp.status} ${resp.statusText}`);
-    log.debug(`response headers:`);
-    log.debug(JSON.stringify(resp.headers, null, 4));
+    log.debug(`HTTP:
+${(resp.config.method).toUpperCase()} ${resp.config.url}
+Status: ${resp.status} ${resp.statusText}
+Response Headers: ${JSON.stringify(resp.headers, null, 2)}
+Request Headers: ${JSON.stringify(resp.config.headers, transformHeaders, 2)}`);
 }
 
 class HttpClient {
