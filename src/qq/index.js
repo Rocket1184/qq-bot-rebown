@@ -19,6 +19,12 @@ const AppConfig = {
     appid: 501004106
 };
 
+function sleep(ms) {
+    return new Promise(resolve => {
+        setTimeout(() => resolve(), ms);
+    });
+}
+
 function writeFileAsync(filePath, data, options) {
     return new Promise((resolve, reject) => {
         fs.writeFile(filePath, data, options, error => {
@@ -103,7 +109,7 @@ class QQ {
                 if (arr[0] === '0') {
                     scanSuccess = true;
                     ptlogin4URL = arr[2];
-                }
+                } else await sleep(2000);
             } while (!scanSuccess);
             log.info('(2/5) 二维码扫描完成');
             // remove file, for linux(or macOS ?)
