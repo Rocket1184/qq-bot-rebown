@@ -389,7 +389,7 @@ class QQ {
                 });
                 if (failCnt > 0) failCnt = 0;
             } catch (err) {
-                console.error(err);
+                log.error(err);
                 if (err.response.status === 502) failCnt++;
                 if (failCnt > 10) {
                     log.error(`服务器 502 错误超过 ${failCnt} 次，连接已断开`);
