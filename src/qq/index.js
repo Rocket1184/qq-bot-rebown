@@ -12,7 +12,6 @@ const MessageAgent = require('./message-agent');
 const log = global.log || new Log(process.env.LOG_LEVEL || 'info');
 
 const cookiePath = process.env.COOKIE_PATH || '/tmp/qq-bot.cookie';
-const qrcodePath = process.env.QRCODE_PATH || '/tmp/code.png';
 
 const AppConfig = {
     clientid: 53999199,
@@ -22,15 +21,6 @@ const AppConfig = {
 function sleep(ms) {
     return new Promise(resolve => {
         setTimeout(() => resolve(), ms);
-    });
-}
-
-function writeFileAsync(filePath, data, options) {
-    return new Promise((resolve, reject) => {
-        fs.writeFile(filePath, data, options, error => {
-            if (error) reject(error);
-            resolve();
-        });
     });
 }
 
@@ -89,12 +79,14 @@ class QQ {
 
             // Step1: download QRcode
             const qrCode = await this.client.get({ url: URL.qrcode, responseType: 'arraybuffer' });
-            await writeFileAsync(qrcodePath, qrCode, 'binary');
-            log.info(`(1/5) 二维码下载到 ${qrcodePath} ，等待扫描`);
-            // open file, only for linux
-            childProcess.exec(`xdg-open ${qrcodePath}`);
+            log.info(`(1/5) 二维码已下载，等待扫描`);
+            // qrcode download done callback
+            this.handelEvent({
+                type: 'qrcode',
+                image: qrCode,
+            });
 
-            // Step2: 
+            // Step2:
             let scanSuccess = false;
             const quotRegxp = /'[^,]*'/g;
             const ptqrloginURL = URL.getPtqrloginURL(this.client.getCookie('qrsig'));
@@ -112,8 +104,8 @@ class QQ {
                 } else await sleep(2000);
             } while (!scanSuccess);
             log.info('(2/5) 二维码扫描完成');
-            // remove file, for linux(or macOS ?)
-            childProcess.exec(`rm ${qrcodePath}`);
+            // scan done callback
+            this.handelEvent({type: 'scan'});
 
             // Step3: find token 'vfwebqq' in cookie
             // NOTICE: the request returns 302 when success. DO NOT REJECT 302.
@@ -164,6 +156,8 @@ class QQ {
         log.info('(5/5) 获取 psessionid 和 uin 成功');
         const cookie = await this.client.getCookieString();
         fs.writeFile(cookiePath, cookie, 'utf-8', () => log.info(`保存 Cookie 到 ${cookiePath}`));
+        // login done callback
+        this.handelEvent({type: 'login'});
     }
 
     getSelfInfo() {
@@ -250,6 +244,7 @@ class QQ {
         manyInfo = await Promise.all(promises);
         log.debug(JSON.stringify(manyInfo, null, 4));
         log.info('信息初始化完成');
+        this.handelEvent({type: 'info-update'});
     }
 
     getBuddyName(uin) {
@@ -363,7 +358,11 @@ class QQ {
                 msgParsed.discuId = from_uin;
                 msgParsed.discuName = this.getDiscuName(from_uin);
         }
-        this.msgHandlers.forEach(handler => handler.tryHandle(msgParsed, this));
+        this.handelEvent(msgParsed);
+    }
+
+    handelEvent(msg) {
+        this.msgHandlers.forEach(handler => handler.tryHandle(msg, this));
     }
 
     async loopPoll() {
@@ -417,7 +416,7 @@ class QQ {
             headers: { Referer: URL.referer151105 }
         });
         log.debug(resp);
-        /* it returns 
+        /* it returns
          * { errmsg: 'error!!!', retcode: 100100 }
          * when success, i don't know why.
          * fxxk tencent
