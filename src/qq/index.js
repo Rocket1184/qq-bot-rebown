@@ -88,6 +88,7 @@ class QQ {
 
             // Step2:
             let scanSuccess = false;
+            let authSuccess = false;
             const quotRegxp = /'[^,]*'/g;
             const ptqrloginURL = URL.getPtqrloginURL(this.client.getCookie('qrsig'));
             let ptlogin4URL;
@@ -98,14 +99,24 @@ class QQ {
                 });
                 log.debug(responseBody);
                 const arr = responseBody.match(quotRegxp).map(i => i.substring(1, i.length - 1));
-                if (arr[0] === '0') {
+                if (arr[0] === '67') {
+                    // [ '67', '0', '', '0', '二维码认证中。(3873452722)', '' ]
+                    // scan done callback
+                    if (!scanSuccess) {
+                        this.handelEvent({type: 'scan'});
+                    }
                     scanSuccess = true;
+                } else if (arr[0] === '65') {
+                    // [ '65', '0', '', '0', '二维码已失效。(181413134)', '' ]
+                    await this.login();
+                } else if (arr[0] === '0') {
+                    authSuccess = true;
                     ptlogin4URL = arr[2];
                 } else await sleep(2000);
-            } while (!scanSuccess);
+            } while (!authSuccess);
             log.info('(2/5) 二维码扫描完成');
-            // scan done callback
-            this.handelEvent({type: 'scan'});
+            // auth done callback
+            this.handelEvent({type: 'auth'});
 
             // Step3: find token 'vfwebqq' in cookie
             // NOTICE: the request returns 302 when success. DO NOT REJECT 302.
