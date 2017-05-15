@@ -103,7 +103,7 @@ class HttpClient {
                 this.handleResponse(response);
                 resolve(response.data);
             }).catch(error => {
-                log.error(error);
+                logResponse(error.response);
                 reject(error);
             });
         });
@@ -122,7 +122,7 @@ class HttpClient {
                 this.handleResponse(response);
                 resolve(response.data);
             }).catch(error => {
-                log.error(error);
+                logResponse(error.response);
                 reject(error);
             });
         });
