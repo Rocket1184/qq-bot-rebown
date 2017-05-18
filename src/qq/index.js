@@ -389,22 +389,24 @@ class QQ {
                 });
                 if (failCnt > 0) failCnt = 0;
             } catch (err) {
-                log.error(err);
-                if (err.response.status === 502) failCnt++;
-                if (failCnt > 10) {
-                    log.error(`服务器 502 错误超过 ${failCnt} 次，连接已断开`);
-                    return;
-                }
-            }
-            log.debug(msgContent);
-            if (msgContent.retcode && msgContent.retcode === 103) {
-                this.getOnlineBuddies();
-            } else if (msgContent.result) {
-                try {
-                    this.logMessage(msgContent);
-                    this.handelMsgRecv(msgContent);
-                } catch (error) {
-                    log.error(error);
+                log.debug('Request Failed: ', err);
+                if (err.response.status === 502)
+                    log.info(`出现 502 错误 ${++failCnt} 次，正在重试`);
+                if (failCnt > 10)
+                    return log.error(`服务器 502 错误超过 ${failCnt} 次，连接已断开`);
+            } finally {
+                log.debug(msgContent);
+                if (msgContent) {
+                    if (msgContent.retcode && msgContent.retcode === 103) {
+                        await this.getOnlineBuddies();
+                    } else if (msgContent.result) {
+                        try {
+                            this.logMessage(msgContent);
+                            this.handelMsgRecv(msgContent);
+                        } catch (err) {
+                            log.error('Error when handling msg: ', msgContent, err);
+                        }
+                    }
                 }
             }
         } while (true);
