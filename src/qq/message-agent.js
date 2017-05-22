@@ -36,6 +36,8 @@ class MessageAgent {
             case 'did':
                 msg.did = id;
                 break;
+            default:
+                throw new Error(`Unknown msg type '${typeOrKeyType}'`);
         }
         msg.content = JSON.stringify([
             content, ['font', this.font]
