@@ -326,8 +326,8 @@ class QQ {
 
     logMessage(msg) {
         const content = msg.result[0].value.content.filter(e => typeof e == 'string').join(' ');
-        const { from_uin, send_uin } = msg.result[0].value;
-        switch (msg.result[0].poll_type) {
+        const { value: { from_uin, send_uin }, poll_type } = msg.result[0];
+        switch (poll_type) {
             case 'message':
                 log.info(`[新消息] ${this.getBuddyName(from_uin)} | ${content}`);
                 break;
@@ -336,14 +336,18 @@ class QQ {
                 break;
             case 'discu_message':
                 log.info(`[讨论组] ${this.getDiscuName(from_uin)} : ${this.getNameInDiscu(send_uin, from_uin)} | ${content}`);
+                break;
+            default:
+                log.notice(`未知消息类型 ‘${poll_type}’`);
+                break;
         }
     }
 
     handelMsgRecv(msg) {
         const content = msg.result[0].value.content.filter(e => typeof e == 'string').join(' ');
-        const { from_uin, send_uin } = msg.result[0].value;
+        const { value: { from_uin, send_uin }, poll_type } = msg.result[0];
         let msgParsed = { content };
-        switch (msg.result[0].poll_type) {
+        switch (poll_type) {
             case 'message':
                 msgParsed.type = 'buddy';
                 msgParsed.id = from_uin;
@@ -362,6 +366,9 @@ class QQ {
                 msgParsed.name = this.getNameInDiscu(send_uin, from_uin);
                 msgParsed.discuId = from_uin;
                 msgParsed.discuName = this.getDiscuName(from_uin);
+                break;
+            default:
+                break;    
         }
         this.msgHandlers.forEach(handler => handler.tryHandle(msgParsed, this));
     }
