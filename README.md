@@ -13,13 +13,17 @@
  - 可自定义的 `MsgHandler`
  - 缩短 URL (使用 [t.cn](http://open.weibo.com/wiki/2/short_url/shorten) 短链接服务)
  - **对所有数据提供 .d.ts 类型定义**
+### RouteMap
+ - 获取人物信息的qq号码
+ - 可以发送图片
+ - 在群中可以@人发言
 
 ## Usage
 
 1. 安装为依赖
 
 ```bash
-$ npm install qq-bot-rebown -S 
+$ npm install qq-bot-rebown -S
 ```
 
 2. 在脚本中引用
