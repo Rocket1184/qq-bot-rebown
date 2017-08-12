@@ -94,7 +94,7 @@ class QQ {
             // open file, only for linux
             childProcess.exec(`xdg-open ${qrcodePath}`);
 
-            // Step2: 
+            // Step2:
             let scanSuccess = false;
             const quotRegxp = /'[^,]*'/g;
             const ptqrloginURL = URL.getPtqrloginURL(this.client.getCookie('qrsig'));
@@ -276,6 +276,13 @@ class QQ {
         });
     }
 
+    getNumberInfo(){
+        return this.client.get({
+            url:URL.NumberListInfo(this.client.getCookie('skey')),
+            headers:{Referer:URL.refererNumber}
+        });
+    }
+
     getNameInDiscu(uin, did) {
         const nameKey = `${did}${uin}`;
         let name = this.discuNameMap.get(nameKey);
@@ -426,7 +433,7 @@ class QQ {
             headers: { Referer: URL.referer151105 }
         });
         log.debug(resp);
-        /* it returns 
+        /* it returns
          * { errmsg: 'error!!!', retcode: 100100 }
          * when success, i don't know why.
          * fxxk tencent

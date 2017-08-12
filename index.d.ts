@@ -12,25 +12,25 @@ interface UserDetailInfo {
         year: Number,
         day: Number
     },
-    occupation: String,
-    phone: String,
+    occupation: string,
+    phone: string,
     allow: Number,
-    college: String,
+    college: string,
     uin: Number,
     constel: Number,
     blood: Number,
-    homepage: String,
+    homepage: string,
     stat: Number,
     vip_info: Number,
-    country: String,
-    city: String,
-    personal: String,
-    nick: String,
+    country: string,
+    city: string,
+    personal: string,
+    nick: string,
     shengxiao: Number,
-    email: String,
-    province: String,
-    gender: String,
-    mobile: String
+    email: string,
+    province: string,
+    gender: string,
+    mobile: string
 }
 
 interface GroupDetailInfo {
@@ -40,23 +40,23 @@ interface GroupDetailInfo {
         stat: Number
     }>,
     minfo: Array<{
-        nick: String,
-        province: String,
-        gender: String,
+        nick: string,
+        province: string,
+        gender: string,
         uin: Number,
-        country: String,
-        city: String
+        country: string,
+        city: string
     }>,
     ginfo: {
         face: Number,
-        memo: String,
+        memo: string,
         class: Number,
-        fingermemo: String,
+        fingermemo: string,
         code: Number,
         createtime: Number,
         flag: Number,
         level: Number,
-        name: String,
+        name: string,
         gid: Number,
         owner: Number,
         members: Array<{
@@ -67,7 +67,7 @@ interface GroupDetailInfo {
     },
     cards: Array<{
         muin: Number,
-        card: String
+        card: string
     }>,
     vipinfo: Array<{
         vip_level: Number,
@@ -79,19 +79,19 @@ interface GroupDetailInfo {
 interface DiscuDetailInfo {
     info: {
         did: Number,
-        discu_name: String,
+        discu_name: string,
         mem_list: Array<{
             mem_uin: Number,
             ruin: Number
         }>
     },
     mem_info: Array<{
-        nick: String,
+        nick: string,
         uin: Number
     }>,
     mem_status: Array<{
         client_type: Number,
-        status: String,
+        status: string,
         uin: Number
     }>
 }
@@ -99,10 +99,10 @@ interface DiscuDetailInfo {
 export class QQ {
     constructor(...handlers: Array<MsgHandler>)
     tokens: {
-        uin: String
-        ptwebqq: String
-        vfwebqq: String
-        psessionid: String
+        uin: string
+        ptwebqq: string
+        vfwebqq: string
+        psessionid: string
     }
     selfInfo: UserDetailInfo
     buddy: {
@@ -113,13 +113,13 @@ export class QQ {
         }>,
         marknames: Array<{
             uin: Number,
-            markname: String,
+            markname: string,
             type: Number
         }>,
         categories: Array<{
             index: Number,
             sort: Number,
-            name: String
+            name: string
         }>,
         vipinfo: Array<{
             vip_level: Number,
@@ -129,17 +129,17 @@ export class QQ {
         info: Array<{
             face: Number,
             flag: Number,
-            nick: String,
+            nick: string,
             uin: Number
         }>
     };
     discu: Array<{
         did: Number
-        name: String
+        name: string
     }>
     group: Array<{
         flag: Number
-        name: String
+        name: string
         /**
          * use this for send group msg
          */
@@ -157,31 +157,31 @@ export class QQ {
     getGroup(): Promise<void>
     getDiscu(): Promise<void>
     initInfo(): Promise<void>
-    getBuddyName(uin: Number): String
-    getDiscuName(did: Number): String
+    getBuddyName(uin: Number): string
+    getDiscuName(did: Number): string
     getDiscuInfo(uin: Number): Promise<DiscuDetailInfo>
-    getNameInDiscu(uin: Number, did: Number): String
-    getGroupName(groupCode: Number): String
+    getNameInDiscu(uin: Number, did: Number): string
+    getGroupName(groupCode: Number): string
     getGroupInfo(code: Number): Promise<GroupDetailInfo>
-    getNameInGroup(uin: Number, groupCode: Number): String
+    getNameInGroup(uin: Number, groupCode: Number): string
     logMessage(msg: Object): void
     handelMsgRecv(msg: Object): void
     loopPoll(): Promise<void>
-    innerSendMsg(url: String, key: Number, id: Number, content: String): Promise<void>
-    sendBuddyMsg(uin: Number | String, content: String): Promise<void>
-    sendDiscuMsg(did: Number | String, content: String): Promise<void>
-    sendGroupMsg(gid: Number | String, content: String): Promise<void>
+    innerSendMsg(url: string, key: Number, id: Number, content: string): Promise<void>
+    sendBuddyMsg(uin: Number | string, content: string): Promise<void>
+    sendDiscuMsg(did: Number | string, content: string): Promise<void>
+    sendGroupMsg(gid: Number | string, content: string): Promise<void>
 }
 
 interface ReceivedMsgType {
     id: Number
-    name: String
+    name: string
     type: 'buddy' | 'discu' | 'group'
-    content: String
-    groupId?: String
-    groupName?: String
-    disucId?: String
-    discuName?: String
+    content: string
+    groupId?: string
+    groupName?: string
+    disucId?: string
+    discuName?: string
 }
 
 export class MsgHandler {
@@ -193,20 +193,20 @@ export class MsgHandler {
 
 interface ClientRequestConfig extends Axios.AxiosRequestConfig {
     headers?: {
-        Origin?: String,
-        Referer?: String
+        Origin?: string,
+        Referer?: string
     }
 }
 
 export class HttpClient {
-    clientHeaders: { Cookie: String, 'User-Agent': String }
-    setCookie(arg: String | Object): void
-    updateCookie(arg: String | Array<String>): void
-    getCookie(key?: String): void
-    getCookieString(): String
-    static mkFormR(payload: Object): String
+    clientHeaders: { Cookie: string, 'User-Agent': string }
+    setCookie(arg: string | Object): void
+    updateCookie(arg: string | Array<string>): void
+    getCookie(key?: string): void
+    getCookiestring(): string
+    static mkFormR(payload: Object): string
     post(config: ClientRequestConfig): Promise<any>
-    get(urlOrConfig: String | ClientRequestConfig): Promise<any>
+    get(urlOrConfig: string | ClientRequestConfig): Promise<any>
 }
 
-export function ShortenUrl(urlOrUrls: String | Array<String>): String | Array<String>;
+export function ShortenUrl(urlOrUrls: string | Array<string>): string | Array<string>;

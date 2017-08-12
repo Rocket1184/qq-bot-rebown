@@ -2,6 +2,15 @@
 
 const Codec = require('../codec');
 
+const bknHash = function(skey, init_str = 5381) {
+    let hash_str = init_str;
+    skey.split('').forEach(ch => {
+        hash_str += (hash_str << 5) + ch.charCodeAt();
+    });
+    hash_str = hash_str & 2147483647;
+    return hash_str;
+};
+
 module.exports = {
     loginPrepare: 'https://ui.ptlogin2.qq.com/cgi-bin/login?daid=164&target=self&style=16&mibao_css=m_webqq&appid=501004106&enable_qlogin=0&no_verifyimg=1&s_url=http%3A%2F%2Fw.qq.com%2Fproxy.html&f_url=loginerroralert&strong_login=1&login_state=10&t=20131024001',
     get qrcode() {
@@ -34,5 +43,9 @@ module.exports = {
     getDiscu: (vfwebqq, psessionid) => `http://s.web2.qq.com/api/get_discus_list?clientid=53999199&psessionid=${psessionid}&vfwebqq=${vfwebqq}&t=${Math.random()}`,
     discuInfo: (discuss_id, psessionid, vfwebqq) => `http://d1.web2.qq.com/channel/get_discu_info?did=${discuss_id}&psessionid=${psessionid}&vfwebqq=${vfwebqq}&clientid=53999199&t=${Math.random()}`,
     getGroup: 'http://s.web2.qq.com/api/get_group_name_list_mask2',
-    groupInfo: (group_code, vfwebqq) => `http://s.web2.qq.com/api/get_group_info_ext2?gcode=${group_code}&vfwebqq=${vfwebqq}&t=${Math.random()}`
+    groupInfo: (group_code, vfwebqq) => `http://s.web2.qq.com/api/get_group_info_ext2?gcode=${group_code}&vfwebqq=${vfwebqq}&t=${Math.random()}`,
+    // adds
+    // 获取好友qq号码
+    NumberListInfo: (skey) => `http://qun.qq.com/cgi-bin/qun_mgr/get_friend_list?bkn=${bknHash(skey)}`,
+    refererNumberList:`http://qun.qq.com/member.html`
 };
