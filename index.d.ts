@@ -1,32 +1,32 @@
 import * as Axios from 'axios';
 
 interface BaseResponse {
-    retcode: Number
+    retcode: number
     result: any
 }
 
 interface UserDetailInfo {
-    face: Number,
+    face: number,
     birthday: {
-        month: Number,
-        year: Number,
-        day: Number
+        month: number,
+        year: number,
+        day: number
     },
     occupation: string,
     phone: string,
-    allow: Number,
+    allow: number,
     college: string,
-    uin: Number,
-    constel: Number,
-    blood: Number,
+    uin: number,
+    constel: number,
+    blood: number,
     homepage: string,
-    stat: Number,
-    vip_info: Number,
+    stat: number,
+    vip_info: number,
     country: string,
     city: string,
     personal: string,
     nick: string,
-    shengxiao: Number,
+    shengxiao: number,
     email: string,
     province: string,
     gender: string,
@@ -35,64 +35,64 @@ interface UserDetailInfo {
 
 interface GroupDetailInfo {
     stats: Array<{
-        client_type: Number,
-        uin: Number,
-        stat: Number
+        client_type: number,
+        uin: number,
+        stat: number
     }>,
     minfo: Array<{
         nick: string,
         province: string,
         gender: string,
-        uin: Number,
+        uin: number,
         country: string,
         city: string
     }>,
     ginfo: {
-        face: Number,
+        face: number,
         memo: string,
-        class: Number,
+        class: number,
         fingermemo: string,
-        code: Number,
-        createtime: Number,
-        flag: Number,
-        level: Number,
+        code: number,
+        createtime: number,
+        flag: number,
+        level: number,
         name: string,
-        gid: Number,
-        owner: Number,
+        gid: number,
+        owner: number,
         members: Array<{
-            muin: Number,
-            mflag: Number
+            muin: number,
+            mflag: number
         }>,
-        option: Number
+        option: number
     },
     cards: Array<{
-        muin: Number,
+        muin: number,
         card: string
     }>,
     vipinfo: Array<{
-        vip_level: Number,
-        u: Number,
-        is_vip: Number
+        vip_level: number,
+        u: number,
+        is_vip: number
     }>
 }
 
 interface DiscuDetailInfo {
     info: {
-        did: Number,
+        did: number,
         discu_name: string,
         mem_list: Array<{
-            mem_uin: Number,
-            ruin: Number
+            mem_uin: number,
+            ruin: number
         }>
     },
     mem_info: Array<{
         nick: string,
-        uin: Number
+        uin: number
     }>,
     mem_status: Array<{
-        client_type: Number,
+        client_type: number,
         status: string,
-        uin: Number
+        uin: number
     }>
 }
 
@@ -107,47 +107,47 @@ export class QQ {
     selfInfo: UserDetailInfo
     buddy: {
         friends: Array<{
-            flag: Number,
-            uin: Number,
-            categories: Number
+            flag: number,
+            uin: number,
+            categories: number
         }>,
         marknames: Array<{
-            uin: Number,
+            uin: number,
             markname: string,
-            type: Number
+            type: number
         }>,
         categories: Array<{
-            index: Number,
-            sort: Number,
+            index: number,
+            sort: number,
             name: string
         }>,
         vipinfo: Array<{
-            vip_level: Number,
-            u: Number,
-            is_vip: Number
+            vip_level: number,
+            u: number,
+            is_vip: number
         }>,
         info: Array<{
-            face: Number,
-            flag: Number,
+            face: number,
+            flag: number,
             nick: string,
-            uin: Number
+            uin: number
         }>
     };
     discu: Array<{
-        did: Number
+        did: number
         name: string
     }>
     group: Array<{
-        flag: Number
+        flag: number
         name: string
         /**
          * use this for send group msg
          */
-        gid: Number
+        gid: number
         /**
          * use this for get group info
          */
-        code: Number
+        code: number
     }>
     run(): Promise<void>
     login(): Promise<void>
@@ -157,24 +157,24 @@ export class QQ {
     getGroup(): Promise<void>
     getDiscu(): Promise<void>
     initInfo(): Promise<void>
-    getBuddyName(uin: Number): string
-    getDiscuName(did: Number): string
-    getDiscuInfo(uin: Number): Promise<DiscuDetailInfo>
-    getNameInDiscu(uin: Number, did: Number): string
-    getGroupName(groupCode: Number): string
-    getGroupInfo(code: Number): Promise<GroupDetailInfo>
-    getNameInGroup(uin: Number, groupCode: Number): string
+    getBuddyName(uin: number): string
+    getDiscuName(did: number): string
+    getDiscuInfo(uin: number): Promise<DiscuDetailInfo>
+    getNameInDiscu(uin: number, did: number): string
+    getGroupName(groupCode: number): string
+    getGroupInfo(code: number): Promise<GroupDetailInfo>
+    getNameInGroup(uin: number, groupCode: number): string
     logMessage(msg: Object): void
     handelMsgRecv(msg: Object): void
     loopPoll(): Promise<void>
-    innerSendMsg(url: string, key: Number, id: Number, content: string): Promise<void>
-    sendBuddyMsg(uin: Number | string, content: string): Promise<void>
-    sendDiscuMsg(did: Number | string, content: string): Promise<void>
-    sendGroupMsg(gid: Number | string, content: string): Promise<void>
+    innerSendMsg(url: string, key: number, id: number, content: string): Promise<void>
+    sendBuddyMsg(uin: number | string, content: string): Promise<void>
+    sendDiscuMsg(did: number | string, content: string): Promise<void>
+    sendGroupMsg(gid: number | string, content: string): Promise<void>
 }
 
 interface ReceivedMsgType {
-    id: Number
+    id: number
     name: string
     type: 'buddy' | 'discu' | 'group'
     content: string
