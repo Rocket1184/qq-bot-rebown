@@ -327,6 +327,9 @@ class QQ {
         }
         group.info.cards.some(i => i.muin == uin ? name = i.card : false);
         if (!name) group.info.minfo.some(i => i.uin == uin ? name = i.nick : false);
+        // uin not found in group members; might be myself ...
+        // fxxk tencent again ...
+        if (!name) name = this.selfInfo.nick;
         this.groupNameMap.set(nameKey, name);
         return name;
     }
@@ -375,7 +378,7 @@ class QQ {
                 msgParsed.discuName = this.getDiscuName(from_uin);
                 break;
             default:
-                break;    
+                break;
         }
         this.msgHandlers.forEach(handler => handler.tryHandle(msgParsed, this));
     }
