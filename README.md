@@ -7,16 +7,18 @@
 
 ## Features
 
- - 扫码登录 ~~目前唯一可用的登录方法~~
- - 使用最近一次登录过的 Cookie 自动登录
- - 记录每条收到的消息以及发送者
- - 可自定义的 `MsgHandler`
- - 缩短 URL (使用 [t.cn](http://open.weibo.com/wiki/2/short_url/shorten) 短链接服务)
- - **对所有数据提供 .d.ts 类型定义**
-### RouteMap
- - 获取人物信息的qq号码
- - 可以发送图片
- - 在群中可以@人发言
+- 扫码登录 ~~目前唯一可用的登录方法~~
+- 使用最近一次登录过的 Cookie 自动登录
+- 记录每条收到的消息以及发送者
+- 可自定义的 `MsgHandler`
+- 缩短 URL (使用 [t.cn](http://open.weibo.com/wiki/2/short_url/shorten) 短链接服务)
+- **对所有数据提供 .d.ts 类型定义**
+
+## RouteMap
+
+- [ ] 获取好友的 QQ 号码
+- [ ] 发送图片或文件 (WIP)
+- [ ] 在群中 @ 群成员 (WIP)
 
 ## Usage
 
@@ -86,7 +88,7 @@ class MsgHandler {
 const { ShortenUrl } = require('qq-bot-rebown');
 
 ShortenUrl('https://github.com').then(console.log);
-//http://t.cn/RxnlTYR
+// http://t.cn/RxnlTYR
 
 ShortenUrl(['https://gitlab.com', 'https://gist.github.com']).then(console.log);
 // [ 'http://t.cn/RhJnX41', 'http://t.cn/amvA44' ]
