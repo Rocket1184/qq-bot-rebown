@@ -7,11 +7,11 @@
 
 ## Features
 
-- 扫码登录 ~~目前唯一可用的登录方法~~
+- 扫码登录
 - 使用最近一次登录过的 Cookie 自动登录
 - 记录每条收到的消息以及发送者
-- 可自定义的 `MsgHandler`
-- 缩短 URL (使用 [t.cn](http://open.weibo.com/wiki/2/short_url/shorten) 短链接服务)
+- 使用 `EventEmitter` 管理事件（登录、消息、断线等）
+- 缩短 URL （使用 [t.cn](http://open.weibo.com/wiki/2/short_url/shorten) 短链接服务）
 - **对所有数据提供 .d.ts 类型定义**
 
 ## RouteMap
@@ -22,70 +22,34 @@
 
 ## Usage
 
-1. 安装为依赖
-
-```bash
-$ npm install qq-bot-rebown -S
-```
-
-2. 在脚本中引用
-
 ```js
 const { QQ } = require('qq-bot-rebown');
 
-// do what you want then...
+const qq = new QQ();
+
+// 设置“收到好友消息”事件监听
+qq.on('buddy', (msg) => {
+    qq.sendBuddyMsg(msg.id, `Hello, ${msg.name}`);
+});
+
+// 不要忘记启动 :)
+qq.run();
 ```
+
+更多示例可以查看 [example.js](./example.js)
 
 ## Docs
 
-### 使用 MsgHandler
+### 事件（Events）列表
 
-```js
-// 导入模块
-const { QQ, MsgHandler } = require('qq-bot-rebown');
+Under construction
 
-// 实例化 MsgHandler
-const fooHandler = new MsgHandler(
-    // 收到消息后的处理函数，可用 async function
-    (msg, qq) => {
-        qq.sendBuddyMsg(msg.id, `Hello ${msg.name}`);
-    },
-    // 该 handler 可处理的消息类型
-    'buddy', 'discu'
-);
-
-// 使用自定义 handler 实例化 QQ 并运行
-new QQ(fooHandler).run();
-```
-
-详细示例请参考 [example.js](./example.js)
-
-### MsgHandler API Reference
-
-```ts
-interface ReceivedMsgType {
-    id: Number
-    name: String
-    type: 'buddy' | 'discu' | 'group'
-    content: String
-    groupId?: String
-    groupName?: String
-    disucId?: String
-    discuName?: String
-}
-
-class MsgHandler {
-    constructor(
-        handler: (msg: ReceivedMsgType, qq: QQ) => void,
-        ...acceptTypes: Array<'buddy' | 'discu' | 'group'>
-    );
-}
-```
+可先参考 [tsd 类型定义文件](./index.d.ts)
 
 ### 短链接 API
 
 ```js
-const { ShortenUrl } = require('qq-bot-rebown');
+const { shortenUrl } = require('qq-bot-rebown');
 
 ShortenUrl('https://github.com').then(console.log);
 // http://t.cn/RxnlTYR
