@@ -1,7 +1,10 @@
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
 const Log = require('log');
+const path = require('path');
+const EventEmitter = require('events');
 const childProcess = require('child_process');
 
 const URL = require('./url');
@@ -10,14 +13,6 @@ const Client = require('../httpclient');
 const MessageAgent = require('./message-agent');
 
 const log = global.log || new Log(process.env.LOG_LEVEL || 'info');
-
-const cookiePath = process.env.COOKIE_PATH || '/tmp/qq-bot.cookie';
-const qrcodePath = process.env.QRCODE_PATH || '/tmp/code.png';
-
-const AppConfig = {
-    clientid: 53999199,
-    appid: 501004106
-};
 
 function sleep(ms) {
     return new Promise(resolve => {
@@ -34,8 +29,33 @@ function writeFileAsync(filePath, data, options) {
     });
 }
 
-class QQ {
-    constructor(...msgHandlers) {
+class QQ extends EventEmitter {
+    static get defaultOptions() {
+        return {
+            app: {
+                clientid: 53999199,
+                appid: 501004106
+            },
+            font: {
+                name: '宋体',
+                size: 10,
+                style: [0, 0, 0],
+                color: '000000'
+            },
+            cookiePath: path.join(os.tmpdir(), 'qq-bot.cookie'),
+            qrcodePath: path.join(os.tmpdir(), 'qq-bot-code.png')
+        };
+    }
+
+    static parseOptions(opt) {
+        const app = Object.assign(QQ.defaultOptions.app, opt.app);
+        const font = Object.assign(QQ.defaultOptions.font, opt.font);
+        return Object.assign(QQ.defaultOptions, opt, { app, font });
+    }
+
+    constructor(options = {}) {
+        super();
+        this.options = QQ.parseOptions(options);
         this.tokens = {
             uin: '',
             ptwebqq: '',
@@ -51,7 +71,6 @@ class QQ {
         this.groupNameMap = new Map();
         this.client = new Client();
         this.messageAgent = null;
-        this.msgHandlers = msgHandlers;
     }
 
     async run() {
@@ -61,19 +80,22 @@ class QQ {
     }
 
     async login() {
+        this.emit('login');
         beforeGotVfwebqq: {
-            if (fs.existsSync(cookiePath)) {
+            if (fs.existsSync(this.options.cookiePath)) {
                 try {
-                    const cookieText = fs.readFileSync(cookiePath, 'utf-8').toString();
+                    const cookieText = fs.readFileSync(this.options.cookiePath, 'utf-8').toString();
                     log.info('(-/5) 检测到 cookie 文件，尝试自动登录');
+                    this.emit('cookie-relogin');
                     this.tokens.ptwebqq = cookieText.match(/ptwebqq=(.+?);/)[1];
                     this.client.setCookie(cookieText);
                     // skip this label if found cookie, goto Step4
                     break beforeGotVfwebqq;
                 } catch (err) {
                     this.tokens.ptwebqq = '';
-                    childProcess.exec(`rm ${cookiePath}`);
+                    childProcess.exec(`rm ${this.options.cookiePath}`);
                     log.info('(-/5) Cookie 文件非法，自动登录失败');
+                    this.emit('cookie-invalid');
                 }
             }
             log.info('(0/5) 开始登录，准备下载二维码');
@@ -89,10 +111,11 @@ class QQ {
 
             // Step1: download QRcode
             const qrCode = await this.client.get({ url: URL.qrcode, responseType: 'arraybuffer' });
-            await writeFileAsync(qrcodePath, qrCode, 'binary');
-            log.info(`(1/5) 二维码下载到 ${qrcodePath} ，等待扫描`);
+            await writeFileAsync(this.options.qrcodePath, qrCode, 'binary');
+            this.emit('qr', this.options.qrcodePath, qrCode);
+            log.info(`(1/5) 二维码下载到 ${this.options.qrcodePath} ，等待扫描`);
             // open file, only for linux
-            childProcess.exec(`xdg-open ${qrcodePath}`);
+            childProcess.exec(`xdg-open ${this.options.qrcodePath}`);
 
             // Step2:
             let scanSuccess = false;
@@ -113,7 +136,7 @@ class QQ {
             } while (!scanSuccess);
             log.info('(2/5) 二维码扫描完成');
             // remove file, for linux(or macOS ?)
-            childProcess.exec(`rm ${qrcodePath}`);
+            childProcess.exec(`rm ${this.options.qrcodePath}`);
 
             // Step3: find token 'vfwebqq' in cookie
             // NOTICE: the request returns 302 when success. DO NOT REJECT 302.
@@ -137,8 +160,9 @@ class QQ {
             this.tokens.vfwebqq = vfwebqqResp.result.vfwebqq;
             log.info('(4/5) 获取 vfwebqq 成功');
         } catch (err) {
-            childProcess.execSync(`rm ${cookiePath}`);
+            childProcess.execSync(`rm ${this.options.cookiePath}`);
             log.info('(-/5) Cookie 已失效，切换到扫码登录');
+            this.emit('cookie-expire');
             return this.login();
         }
         // Step5: psessionid and uin
@@ -146,8 +170,9 @@ class QQ {
             url: URL.login2,
             data: {
                 ptwebqq: this.tokens.ptwebqq,
-                clientid: AppConfig.clientid,
+                clientid: this.options.app.clientid,
                 psessionid: "",
+                // TODO: online status
                 status: "online",
             },
             headers: {
@@ -159,11 +184,14 @@ class QQ {
         this.tokens.uin = loginStat.result.uin;
         this.tokens.psessionid = loginStat.result.psessionid;
         this.messageAgent = new MessageAgent({
+            font: this.options.font,
+            clientid: this.options.app.clientid,
             psessionid: this.tokens.psessionid
         });
         log.info('(5/5) 获取 psessionid 和 uin 成功');
         const cookie = await this.client.getCookieString();
-        fs.writeFile(cookiePath, cookie, 'utf-8', () => log.info(`保存 Cookie 到 ${cookiePath}`));
+        fs.writeFile(this.options.cookiePath, cookie, 'utf-8', () => log.info(`保存 Cookie 到 ${this.options.cookiePath}`));
+        this.emit('login-success', this.options.cookiePath, cookie);
     }
 
     getSelfInfo() {
@@ -276,10 +304,10 @@ class QQ {
         });
     }
 
-    getNumberInfo(){
+    getNumberInfo() {
         return this.client.get({
-            url:URL.NumberListInfo(this.client.getCookie('skey')),
-            headers:{Referer:URL.refererNumber}
+            url: URL.NumberListInfo(this.client.getCookie('skey')),
+            headers: { Referer: URL.refererNumber }
         });
     }
 
@@ -380,10 +408,12 @@ class QQ {
             default:
                 break;
         }
-        this.msgHandlers.forEach(handler => handler.tryHandle(msgParsed, this));
+        this.emit('msg', msgParsed, msg);
+        this.emit(msgParsed.type, msgParsed, msg);
     }
 
     async loopPoll() {
+        this.emit('start-poll');
         log.info('开始接收消息...');
         let failCnt = 0;
         do {
@@ -393,7 +423,7 @@ class QQ {
                     url: URL.poll,
                     data: {
                         ptwebqq: this.tokens.ptwebqq,
-                        clientid: AppConfig.clientid,
+                        clientid: this.options.app.clientid,
                         psessionid: this.tokens.psessionid,
                         key: ''
                     },
@@ -404,13 +434,16 @@ class QQ {
                     responseType: 'text',
                     validateStatus: status => status === 200 || status === 504
                 });
+                this.emit('polling', msgContent);
                 if (failCnt > 0) failCnt = 0;
             } catch (err) {
                 log.debug('Request Failed: ', err);
                 if (err.response && err.response.status === 502)
                     log.info(`出现 502 错误 ${++failCnt} 次，正在重试`);
-                if (failCnt > 10)
+                if (failCnt > 10) {
+                    this.emit('disconnect');
                     return log.error(`服务器 502 错误超过 ${failCnt} 次，连接已断开`);
+                }
             } finally {
                 log.debug(msgContent);
                 if (msgContent) {
@@ -418,10 +451,11 @@ class QQ {
                         await this.getOnlineBuddies();
                     } else if (msgContent.result) {
                         try {
-                            this.logMessage(msgContent);
+                            this.newFunction(msgContent);
                             this.handelMsgRecv(msgContent);
                         } catch (err) {
                             log.error('Error when handling msg: ', msgContent, err);
+                            this.emit('error', err);
                         }
                     }
                 }
@@ -429,10 +463,10 @@ class QQ {
         } while (true);
     }
 
-    async innerSendMsg(url, key, id, content) {
+    async innerSendMsg(url, type, id, content) {
         const resp = await this.client.post({
             url,
-            data: this.messageAgent.build(key, id, content),
+            data: this.messageAgent.build(type, id, content),
             headers: { Referer: URL.referer151105 }
         });
         log.debug(resp);
@@ -441,6 +475,9 @@ class QQ {
          * when success, i don't know why.
          * fxxk tencent
          */
+        this.emit('send', resp, { type, id, content });
+        // send-buddy, send-discu, send-group
+        this.emit(`send-${type}`, resp, { type, id, content });
         return resp;
     }
 
@@ -460,6 +497,10 @@ class QQ {
         const resp = await this.innerSendMsg(URL.groupMsg, 'group', gid, content);
         log.info(`发消息给群 ${this.getGroupName(gid)} : ${content}`);
         return resp;
+    }
+
+    newFunction(msgContent) {
+        this.logMessage(msgContent);
     }
 }
 
