@@ -15,7 +15,7 @@ function transformHeaders(k, v) {
 }
 
 function logResponse(resp) {
-    log.debug(`HTTP:
+    if (resp) log.debug(`HTTP:
 ${(resp.config.method).toUpperCase()} ${resp.config.url}
 Status: ${resp.status} ${resp.statusText}
 Response Headers: ${JSON.stringify(resp.headers, null, 2)}

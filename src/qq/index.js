@@ -407,7 +407,7 @@ class QQ {
                 if (failCnt > 0) failCnt = 0;
             } catch (err) {
                 log.debug('Request Failed: ', err);
-                if (err.response.status === 502)
+                if (err.response && err.response.status === 502)
                     log.info(`出现 502 错误 ${++failCnt} 次，正在重试`);
                 if (failCnt > 10)
                     return log.error(`服务器 502 错误超过 ${failCnt} 次，连接已断开`);
