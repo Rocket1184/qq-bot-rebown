@@ -51,9 +51,9 @@ Under construction
 ```js
 const { shortenUrl } = require('qq-bot-rebown');
 
-ShortenUrl('https://github.com').then(console.log);
+shortenUrl('https://github.com').then(console.log);
 // http://t.cn/RxnlTYR
 
-ShortenUrl(['https://gitlab.com', 'https://gist.github.com']).then(console.log);
+shortenUrl(['https://gitlab.com', 'https://gist.github.com']).then(console.log);
 // [ 'http://t.cn/RhJnX41', 'http://t.cn/amvA44' ]
 ```
