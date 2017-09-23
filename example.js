@@ -1,18 +1,23 @@
 'use strict';
 
-const { QQ, MsgHandler } = require('.');
+const fs = require('fs');
+const http = require('http');
+const { QQ } = require('.');
 
-const buddyHandler = new MsgHandler(
-    (msg, qq) => {
-        qq.sendBuddyMsg(msg.id, `Hello ${msg.name}`);
-    },
-    'buddy'
-);
+const qq = new QQ({ cookiePath: '/tmp/qq-bot/cookie.txt' });
 
-const groupHandler = new MsgHandler(
-    msg => {
-        console.log(`HandlerTest: ${JSON.stringify(msg, null, 4)}`);
-    }, 'buddy', 'discu', 'group'
-);
+const server = http.createServer((req, res) => {
+    if (req.method === 'GET' && req.url === '/code') {
+        fs.createReadStream(qq.options.qrcodePath).pipe(res);
+    }
+})
 
-new QQ(buddyHandler, groupHandler).run();
+qq.on('msg', (msg) => {
+    console.log(JSON.stringify(msg));
+})
+
+qq.on('buddy', (msg) => {
+    qq.sendBuddyMsg(msg.id, `Hello, ${msg.name}`);
+});
+
+qq.run();
