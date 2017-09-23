@@ -1,3 +1,5 @@
+'use strict';
+
 class MessageAgent {
     constructor(options) {
         const { clientid, psessionid, font } = options;
