@@ -1,33 +1,17 @@
 'use strict';
 
-const fs = require('fs');
 const os = require('os');
 const Log = require('log');
 const path = require('path');
 const EventEmitter = require('events');
-const childProcess = require('child_process');
 
 const URL = require('./url');
 const Codec = require('../codec');
+const Utils = require('../utils');
 const Client = require('../httpclient');
 const MessageAgent = require('./message-agent');
 
 const log = global.log || new Log(process.env.LOG_LEVEL || 'info');
-
-function sleep(ms) {
-    return new Promise(resolve => {
-        setTimeout(() => resolve(), ms);
-    });
-}
-
-function writeFileAsync(filePath, data, options) {
-    return new Promise((resolve, reject) => {
-        fs.writeFile(filePath, data, options, error => {
-            if (error) reject(error);
-            resolve();
-        });
-    });
-}
 
 class QQ extends EventEmitter {
     static get defaultOptions() {
@@ -82,9 +66,10 @@ class QQ extends EventEmitter {
     async login() {
         this.emit('login');
         beforeGotVfwebqq: {
-            if (fs.existsSync(this.options.cookiePath)) {
+            if (await Utils.existAsync(this.options.cookiePath)) {
                 try {
-                    const cookieText = fs.readFileSync(this.options.cookiePath, 'utf-8').toString();
+                    const cookieFile = await Utils.readFileAsync(this.options.cookiePath, 'utf-8');
+                    const cookieText = cookieFile.toString();
                     log.info('(-/5) 检测到 cookie 文件，尝试自动登录');
                     this.emit('cookie-relogin');
                     this.tokens.ptwebqq = cookieText.match(/ptwebqq=(.+?);/)[1];
@@ -93,7 +78,7 @@ class QQ extends EventEmitter {
                     break beforeGotVfwebqq;
                 } catch (err) {
                     this.tokens.ptwebqq = '';
-                    childProcess.exec(`rm ${this.options.cookiePath}`);
+                    Utils.unlinkAsync(this.options.cookiePath);
                     log.info('(-/5) Cookie 文件非法，自动登录失败');
                     this.emit('cookie-invalid');
                 }
@@ -111,11 +96,10 @@ class QQ extends EventEmitter {
 
             // Step1: download QRcode
             const qrCode = await this.client.get({ url: URL.qrcode, responseType: 'arraybuffer' });
-            await writeFileAsync(this.options.qrcodePath, qrCode, 'binary');
+            await Utils.writeFileAsync(this.options.qrcodePath, qrCode, 'binary');
             this.emit('qr', this.options.qrcodePath, qrCode);
             log.info(`(1/5) 二维码下载到 ${this.options.qrcodePath} ，等待扫描`);
-            // open file, only for linux
-            childProcess.exec(`xdg-open ${this.options.qrcodePath}`);
+            Utils.openFile(this.options.qrcodePath);
 
             // Step2:
             let scanSuccess = false;
@@ -132,11 +116,10 @@ class QQ extends EventEmitter {
                 if (arr[0] === '0') {
                     scanSuccess = true;
                     ptlogin4URL = arr[2];
-                } else await sleep(2000);
+                } else await Utils.sleep(2000);
             } while (!scanSuccess);
             log.info('(2/5) 二维码扫描完成');
-            // remove file, for linux(or macOS ?)
-            childProcess.exec(`rm ${this.options.qrcodePath}`);
+            Utils.unlinkAsync(this.options.qrcodePath);
 
             // Step3: find token 'vfwebqq' in cookie
             // NOTICE: the request returns 302 when success. DO NOT REJECT 302.
@@ -160,7 +143,7 @@ class QQ extends EventEmitter {
             this.tokens.vfwebqq = vfwebqqResp.result.vfwebqq;
             log.info('(4/5) 获取 vfwebqq 成功');
         } catch (err) {
-            childProcess.execSync(`rm ${this.options.cookiePath}`);
+            Utils.unlinkAsync(this.options.cookiePath);
             log.info('(-/5) Cookie 已失效，切换到扫码登录');
             this.emit('cookie-expire');
             return this.login();
@@ -190,7 +173,9 @@ class QQ extends EventEmitter {
         });
         log.info('(5/5) 获取 psessionid 和 uin 成功');
         const cookie = await this.client.getCookieString();
-        fs.writeFile(this.options.cookiePath, cookie, 'utf-8', () => log.info(`保存 Cookie 到 ${this.options.cookiePath}`));
+        Utils.writeFileAsync(this.options.cookiePath, cookie, 'utf-8').then(() => {
+            log.info(`保存 Cookie 到 ${this.options.cookiePath}`)
+        });
         this.emit('login-success', this.options.cookiePath, cookie);
     }
 
