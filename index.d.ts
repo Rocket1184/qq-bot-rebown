@@ -96,8 +96,24 @@ interface DiscuDetailInfo {
     }>
 }
 
+interface QQOptions {
+    app?: {
+        clientid?: number,
+        appid?: number
+    },
+    font?: {
+        name?: string,
+        size?: number,
+        style?: Array<number> | [0, 0, 0],
+        color?: string | '000000'
+    },
+    cookiePath?: string | '/tmp/qq-bot.cookie',
+    qrcodePath?: string | '/tmp/code.png'
+}
+
 export class QQ {
-    constructor(...handlers: Array<MsgHandler>)
+    constructor(options: QQOptions)
+    options: QQOptions
     tokens: {
         uin: string
         ptwebqq: string
@@ -171,6 +187,139 @@ export class QQ {
     sendBuddyMsg(uin: number | string, content: string): Promise<void>
     sendDiscuMsg(did: number | string, content: string): Promise<void>
     sendGroupMsg(gid: number | string, content: string): Promise<void>
+
+    on(event: string, listener: (...args: any[]) => void): void
+    /**
+     * login start. use `login-success` if u want to catch
+     * login success event.
+     * 
+     * @param {'login'} event 
+     * @memberof QQ
+     */
+    on(event: 'login')
+    /**
+     * start re-login using cookie
+     * 
+     * @param {'cookie-relogin'} event 
+     * @memberof QQ
+     */
+    on(event: 'cookie-relogin')
+    /**
+     * found cookie file but in bad format
+     * 
+     * @param {'cookie-invalid'} event 
+     * @memberof QQ
+     */
+    on(event: 'cookie-invalid')
+    /**
+     * QR-Code downloaded, about to scan
+     * 
+     * @param {'qr'} event 
+     * @param {string} qrcodePath /path/to/qrcode.png
+     * @param {ArrayBuffer} qrCode binary QR-Code data
+     * @memberof QQ
+     */
+    on(event: 'qr', listener: (qrcodePath: string, qrCode: ArrayBuffer) => void)
+    /**
+     * re-login using cookie but cookie has expired
+     * 
+     * @param {'cookie-expire'} event 
+     * @memberof QQ
+     */
+    on(event: 'cookie-expire')
+    on(event: 'login-success')
+    /**
+     * receive a message
+     * 
+     * @param {'msg'} event 
+     * @param {ReceivedMsgType} msgParsed 
+     * @param {*} msg unparsed raw polling result
+     * @memberof QQ
+     */
+    on(event: 'msg', listener: (msgParsed: ReceivedMsgType, msg: any) => void)
+    /**
+     * receive a buddy message
+     * 
+     * @param {'buddy'} event 
+     * @param {ReceivedMsgType} msgParsed 
+     * @param {*} msg unparsed raw polling result
+     * @memberof QQ
+     */
+    on(event: 'buddy', listener: (msgParsed: ReceivedMsgType, msg: any) => void)
+    /**
+     * receive a discu message
+     * 
+     * @param {'discu'} event 
+     * @param {ReceivedMsgType} msgParsed 
+     * @param {*} msg unparsed raw polling result
+     * @memberof QQ
+     */
+    on(event: 'discu', listener: (msgParsed: ReceivedMsgType, msg: any) => void)
+    /**
+     * receive a group message
+     * 
+     * @param {'group'} event 
+     * @param {ReceivedMsgType} msgParsed 
+     * @param {*} msg unparsed raw polling result
+     * @memberof QQ
+     */
+    on(event: 'group', listener: (msgParsed: ReceivedMsgType, msg: any) => void)
+    /**
+     * poll will start
+     * 
+     * @param {'start-poll'} event 
+     * @memberof QQ
+     */
+    on(event: 'start-poll')
+    /**
+     * a poll finished
+     * 
+     * @param {'polling'} event 
+     * @param {*} msg unpareed raw polling result
+     * @memberof QQ
+     */
+    on(event: 'polling', listener: (msg: any) => void)
+    on(event: 'disconnect')
+    /**
+     * error when handling messages
+     * 
+     * @param {'error'} event 
+     * @param {Error} err 
+     * @memberof QQ
+     */
+    on(event: 'error', listener: (err: Error) => void)
+    /**
+     * about to send message
+     * 
+     * @param {'send'} event 
+     * @param {SentMsgType} msg 
+     * @memberof QQ
+     */
+    on(event: 'send', listener: (msg: SentMsgType) => void)
+    /**
+     * about to send message to buddy
+     * 
+     * @param {'send-buddy'} event 
+     * @param {SentMsgType} msg 
+     * @memberof QQ
+     */
+    on(event: 'send-buddy', listener: (msg: SentMsgType) => void)
+    /**
+     * about to send message to discu
+     * 
+     * @param {'send-discu'} event 
+     * @param {SentMsgType} msg 
+     * @memberof QQ
+     */
+    on(event: 'send-discu', listener: (msg: SentMsgType) => void)
+    /**
+     * about to send message to group
+     * 
+     * @param {'send-group'} event 
+     * @param {SentMsgType} msg 
+     * @memberof QQ
+     */
+    on(event: 'send-group', listener: (msg: SentMsgType) => void)
 }
 
 interface ReceivedMsgType {
@@ -184,11 +333,10 @@ interface ReceivedMsgType {
     discuName?: string
 }
 
-export class MsgHandler {
-    constructor(
-        handler: (msg: ReceivedMsgType, qq: QQ) => void,
-        ...acceptTypes: Array<'buddy' | 'discu' | 'group'>
-    );
+interface SentMsgType {
+    id: number
+    type: 'buddy' | 'discu' | 'group'
+    content: string
 }
 
 interface ClientRequestConfig extends Axios.AxiosRequestConfig {
@@ -209,4 +357,4 @@ export class HttpClient {
     get(urlOrConfig: string | ClientRequestConfig): Promise<any>
 }
 
-export function ShortenUrl(urlOrUrls: string | Array<string>): string | Array<string>;
+export function shortenUrl(urlOrUrls: string | Array<string>): string | Array<string>;
