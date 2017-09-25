@@ -448,7 +448,7 @@ class QQ extends EventEmitter {
                         await this.getOnlineBuddies();
                     } else if (msgContent.result) {
                         try {
-                            this.newFunction(msgContent);
+                            this.logMessage(msgContent);
                             this.handelMsgRecv(msgContent);
                         } catch (err) {
                             log.error('Error when handling msg: ', msgContent, err);
@@ -494,10 +494,6 @@ class QQ extends EventEmitter {
         const resp = await this.innerSendMsg(URL.groupMsg, 'group', gid, content);
         log.info(`发消息给群 ${this.getGroupName(gid)} : ${content}`);
         return resp;
-    }
-
-    newFunction(msgContent) {
-        this.logMessage(msgContent);
     }
 }
 
