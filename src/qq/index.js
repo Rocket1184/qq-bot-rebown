@@ -59,7 +59,13 @@ class QQ extends EventEmitter {
 
     async run() {
         await this.login();
-        await this.initInfo();
+        try {
+            await this.initInfo();
+        } catch (err) {
+            if (err.message === 'disconnect') {
+                return this.run();
+            }
+        }
         await this.loopPoll();
     }
 
@@ -174,7 +180,7 @@ class QQ extends EventEmitter {
         log.info('(5/5) 获取 psessionid 和 uin 成功');
         const cookie = await this.client.getCookieString();
         Utils.writeFileAsync(this.options.cookiePath, cookie, 'utf-8').then(() => {
-            log.info(`保存 Cookie 到 ${this.options.cookiePath}`)
+            log.info(`保存 Cookie 到 ${this.options.cookiePath}`);
         });
         this.emit('login-success', this.options.cookiePath, cookie);
     }
@@ -240,18 +246,24 @@ class QQ extends EventEmitter {
     }
 
     async initInfo() {
+        const selfInfo = await this.getSelfInfo();
+        if (selfInfo.retcode === 6) {
+            console.info('Cookie 已过期，需重新登录');
+            await Utils.unlinkAsync(this.options.cookiePath);
+            this.emit('disconnect');
+            throw new Error('disconnect');
+        }
+        this.selfInfo = selfInfo.result;
         let manyInfo = await Promise.all([
-            this.getSelfInfo(),
             this.getBuddy(),
             this.getOnlineBuddies(),
             this.getDiscu(),
             this.getGroup()
         ]);
         log.debug(JSON.stringify(manyInfo, null, 4));
-        this.selfInfo = manyInfo[0].result;
-        this.buddy = manyInfo[1].result;
-        this.discu = manyInfo[3].result.dnamelist;
-        this.group = manyInfo[4].result.gnamelist;
+        this.buddy = manyInfo[0].result;
+        this.discu = manyInfo[2].result.dnamelist;
+        this.group = manyInfo[3].result.gnamelist;
         let promises = this.group.map(async e => {
             const rawInfo = await this.getGroupInfo(e.code);
             return e.info = rawInfo.result;
