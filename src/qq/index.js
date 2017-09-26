@@ -101,29 +101,40 @@ class QQ extends EventEmitter {
             await this.client.get(URL.loginPrepare);
 
             // Step1: download QRcode
-            const qrCode = await this.client.get({ url: URL.qrcode, responseType: 'arraybuffer' });
-            await Utils.writeFileAsync(this.options.qrcodePath, qrCode, 'binary');
-            this.emit('qr', this.options.qrcodePath, qrCode);
-            log.info(`(1/5) 二维码下载到 ${this.options.qrcodePath} ，等待扫描`);
-            Utils.openFile(this.options.qrcodePath);
-
-            // Step2:
             let scanSuccess = false;
+            let qrCodeExpired = true;
+            let ptlogin4URL;  // Scan QR code to get this, useful in Step3
             const quotRegxp = /'[^,]*'/g;
-            const ptqrloginURL = URL.getPtqrloginURL(this.client.getCookie('qrsig'));
-            let ptlogin4URL;
-            do {
-                const responseBody = await this.client.get({
-                    url: ptqrloginURL,
-                    headers: { Referer: URL.ptqrloginReferer },
-                });
-                log.debug(responseBody);
-                const arr = responseBody.match(quotRegxp).map(i => i.substring(1, i.length - 1));
-                if (arr[0] === '0') {
-                    scanSuccess = true;
-                    ptlogin4URL = arr[2];
-                } else await Utils.sleep(2000);
-            } while (!scanSuccess);
+
+            while (!scanSuccess) {
+
+                const qrCode = await this.client.get({ url: URL.qrcode, responseType: 'arraybuffer' });
+                await Utils.writeFileAsync(this.options.qrcodePath, qrCode, 'binary');
+                qrCodeExpired = false;
+                this.emit('qr', this.options.qrcodePath, qrCode);
+                log.info(`(1/5) 二维码下载到 ${this.options.qrcodePath} ，等待扫描`);
+                Utils.openFile(this.options.qrcodePath);
+                const ptqrloginURL = URL.getPtqrloginURL(this.client.getCookie('qrsig'));
+
+                // Step2: scan QRcode
+                while (!scanSuccess && !qrCodeExpired) {
+                    const responseBody = await this.client.get({
+                        url: ptqrloginURL,
+                        headers: { Referer: URL.ptqrloginReferer },
+                    });
+                    log.debug(responseBody.trim());
+                    const arr = responseBody.match(quotRegxp).map(i => i.substring(1, i.length - 1));
+                    log.debug('JSONP result matched:\n', JSON.stringify(arr));
+                    if (arr[0] === '0') {
+                        scanSuccess = true;
+                        ptlogin4URL = arr[2];
+                    } else if (arr[0] === '65') {
+                        qrCodeExpired = true;
+                        this.emit('qr-expire');
+                        log.info(`(1/5) 二维码已失效，重新下载二维码`);
+                    } else await Utils.sleep(2000);
+                }
+            }
             log.info('(2/5) 二维码扫描完成');
             Utils.unlinkAsync(this.options.qrcodePath);
 

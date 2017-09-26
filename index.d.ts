@@ -221,6 +221,15 @@ export class QQ {
      */
     on(event: 'qr', listener: (qrcodePath: string, qrCode: ArrayBuffer) => void)
     /**
+     * QR-Code downloaded, about to scan
+     * 
+     * @param {'qr'} event 
+     * @param {string} qrcodePath /path/to/qrcode.png
+     * @param {ArrayBuffer} qrCode binary QR-Code data
+     * @memberof QQ
+     */
+    on(event: 'qr-expire')
+    /**
      * re-login using cookie but cookie has expired
      * 
      * @param {'cookie-expire'} event 
