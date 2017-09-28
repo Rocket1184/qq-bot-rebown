@@ -449,14 +449,19 @@ class QQ extends EventEmitter {
                 if (err.response && err.response.status === 502)
                     log.info(`出现 502 错误 ${++failCnt} 次，正在重试`);
                 if (failCnt > 10) {
+                    log.error(`服务器 502 错误超过 ${failCnt} 次，连接已断开`);
                     this.emit('disconnect');
-                    return log.error(`服务器 502 错误超过 ${failCnt} 次，连接已断开`);
+                    return;
                 }
             } finally {
                 log.debug(msgContent);
-                if (msgContent) {
-                    if (msgContent.retcode && msgContent.retcode === 103) {
+                if (msgContent && msgContent.retcode) {
+                    if (msgContent.retcode === 103) {
                         await this.getOnlineBuddies();
+                    } else if (msgContent.retcode === 100001) {
+                        log.info('登录状态已失效');
+                        this.emit('disconnect');
+                        return;
                     } else if (msgContent.result) {
                         try {
                             this.logMessage(msgContent);
