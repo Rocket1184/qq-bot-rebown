@@ -455,14 +455,8 @@ class QQ extends EventEmitter {
                 }
             } finally {
                 log.debug(msgContent);
-                if (msgContent && msgContent.retcode) {
-                    if (msgContent.retcode === 103) {
-                        await this.getOnlineBuddies();
-                    } else if (msgContent.retcode === 100001) {
-                        log.info('登录状态已失效');
-                        this.emit('disconnect');
-                        return;
-                    } else if (msgContent.result) {
+                switch (msgContent.retcode) {
+                    case 0:
                         try {
                             this.logMessage(msgContent);
                             this.handelMsgRecv(msgContent);
@@ -470,7 +464,17 @@ class QQ extends EventEmitter {
                             log.error('Error when handling msg: ', msgContent, err);
                             this.emit('error', err);
                         }
-                    }
+                        break;
+                    case 103:
+                        await this.getOnlineBuddies();
+                        break;
+                    case 100001:
+                        log.info('登录状态已失效');
+                        this.emit('disconnect');
+                        return;
+                    default:
+                        log.info('未知的msgContent: ', msgContent);
+                        break;
                 }
             }
         } while (true);
