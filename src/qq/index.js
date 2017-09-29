@@ -425,9 +425,9 @@ class QQ extends EventEmitter {
         log.info('开始接收消息...');
         let failCnt = 0;
         do {
-            let msgContent;
+            let pollBody;
             try {
-                msgContent = await this.client.post({
+                pollBody = await this.client.post({
                     url: URL.poll,
                     data: {
                         ptwebqq: this.tokens.ptwebqq,
@@ -442,7 +442,7 @@ class QQ extends EventEmitter {
                     responseType: 'text',
                     validateStatus: status => status === 200 || status === 504
                 });
-                this.emit('polling', msgContent);
+                this.emit('polling', pollBody);
                 if (failCnt > 0) failCnt = 0;
             } catch (err) {
                 log.debug('Request Failed: ', err);
@@ -454,15 +454,17 @@ class QQ extends EventEmitter {
                     return;
                 }
             } finally {
-                log.debug(msgContent);
-                switch (msgContent.retcode) {
+                log.debug(pollBody);
+                switch (pollBody.retcode) {
                     case 0:
-                        try {
-                            this.logMessage(msgContent);
-                            this.handelMsgRecv(msgContent);
-                        } catch (err) {
-                            log.error('Error when handling msg: ', msgContent, err);
-                            this.emit('error', err);
+                        if (pollBody.result) {
+                            try {
+                                this.logMessage(pollBody);
+                                this.handelMsgRecv(pollBody);
+                            } catch (err) {
+                                log.error('Error when handling msg: ', pollBody, err);
+                                this.emit('error', err);
+                            }
                         }
                         break;
                     case 103:
@@ -473,7 +475,8 @@ class QQ extends EventEmitter {
                         this.emit('disconnect');
                         return;
                     default:
-                        log.info('未知的msgContent: ', msgContent);
+                        log.notice('未知的 retcode: ', pollBody.retcode);
+                        log.notice(pollBody);
                         break;
                 }
             }
