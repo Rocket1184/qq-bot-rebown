@@ -451,7 +451,7 @@ class QQ extends EventEmitter {
                 if (failCnt > 10) {
                     log.error(`服务器 502 错误超过 ${failCnt} 次，连接已断开`);
                     this.emit('disconnect');
-                    return;
+                    throw new Error('disconnect');
                 }
             } finally {
                 log.debug(pollBody);
@@ -471,9 +471,9 @@ class QQ extends EventEmitter {
                         await this.getOnlineBuddies();
                         break;
                     case 100001:
-                        log.info('登录状态已失效');
+                        log.info('登录状态已失效，连接断开');
                         this.emit('disconnect');
-                        return;
+                        throw new Error('disconnect');
                     default:
                         log.notice('未知的 retcode: ', pollBody.retcode);
                         log.notice(pollBody);
