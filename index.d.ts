@@ -165,6 +165,21 @@ export class QQ {
          */
         code: number
     }>
+    buddyNameMap: Map<string, string>
+    discuNameMap: Map<string, string>
+    groupNameMap: Map<string, string>
+    // TODO: HttpClient tsd
+    client: any
+    // TODO: MessageAgent tsd
+    messageAgent: any
+    /**
+     * true if QQBot still online/trying to online
+     */
+    isAlive: boolean
+    /**
+     * functions to exec every `cronTimeout`
+     */
+    cronJobs: Array<() => Promise<any>>
     run(): Promise<void>
     login(): Promise<void>
     getSelfInfo(): Promise<void>
@@ -172,6 +187,8 @@ export class QQ {
     getOnlineBuddies(): Promise<void>
     getGroup(): Promise<void>
     getDiscu(): Promise<void>
+    getAllGroupMembers(): Promise<void>
+    getAllDiscuMembers(): Promise<void>
     initInfo(): Promise<void>
     getBuddyName(uin: number): string
     getDiscuName(did: number): string
@@ -188,7 +205,7 @@ export class QQ {
     sendDiscuMsg(did: number | string, content: string): Promise<void>
     sendGroupMsg(gid: number | string, content: string): Promise<void>
 
-    on(event: string, listener: (...args: any[]) => void): void
+    on(event: string, listener?: (...args: any[]) => void): void
     /**
      * login start. use `login-success` if u want to catch
      * login success event.
