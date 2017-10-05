@@ -26,6 +26,7 @@ class QQ extends EventEmitter {
                 style: [0, 0, 0],
                 color: '000000'
             },
+            cronTimeout: 60 * 1000,
             cookiePath: path.join(os.tmpdir(), 'qq-bot.cookie'),
             qrcodePath: path.join(os.tmpdir(), 'qq-bot-code.png')
         };
@@ -55,14 +56,30 @@ class QQ extends EventEmitter {
         this.groupNameMap = new Map();
         this.client = new Client();
         this.messageAgent = null;
+        // true if QQBot still online/trying to online
+        this.isAlive = false;
+        // functions to exec every `cronTimeout`
+        this.cronJobs = [
+            () => this.getOnlineBuddies(),
+            () => this.getBuddy()
+                .then(() => this.buddyNameMap = new Map()),
+            () => this.getGroup()
+                .then(() => Promise.all(this.getAllGroupMembers())
+                    .then(() => this.groupNameMap = new Map())),
+            () => this.getDiscu()
+                .then(() => Promise.all(this.getAllDiscuMembers())
+                    .then(() => this.discuNameMap = new Map()))
+        ];
     }
 
     async run() {
         await this.login();
+        this.isAlive = true;
         try {
             await this.initInfo();
         } catch (err) {
             if (err.message === 'disconnect') {
+                this.isAlive = false;
                 return this.run();
             }
         }
@@ -256,6 +273,20 @@ class QQ extends EventEmitter {
         });
     }
 
+    getAllGroupMembers() {
+        return this.group.map(async e => {
+            const rawInfo = await this.getGroupInfo(e.code);
+            return e.info = rawInfo.result;
+        });
+    }
+
+    getAllDiscuMembers() {
+        return this.discu.map(async e => {
+            const rawInfo = await this.getDiscuInfo(e.did);
+            return e.info = rawInfo.result;
+        });
+    }
+
     async initInfo() {
         const selfInfo = await this.getSelfInfo();
         if (selfInfo.retcode === 6) {
@@ -275,17 +306,18 @@ class QQ extends EventEmitter {
         this.buddy = manyInfo[0].result;
         this.discu = manyInfo[2].result.dnamelist;
         this.group = manyInfo[3].result.gnamelist;
-        let promises = this.group.map(async e => {
-            const rawInfo = await this.getGroupInfo(e.code);
-            return e.info = rawInfo.result;
-        });
-        promises = promises.concat(this.discu.map(async e => {
-            const rawInfo = await this.getDiscuInfo(e.did);
-            return e.info = rawInfo.result;
-        }));
+        let promises = this.getAllGroupMembers();
+        promises = promises.concat(this.getAllDiscuMembers());
         manyInfo = await Promise.all(promises);
         log.debug(JSON.stringify(manyInfo, null, 4));
         log.info('信息初始化完成');
+        // invoke cronJobs every `cronTimeout`
+        (function cron() {
+            if (this.isAlive) setTimeout(() => {
+                this.cronJobs.forEach(job => job());
+                setTimeout(() => cron.bind(this), this.options.cronTimeout);
+            }, this.options.cronTimeout);
+        }).apply(this);
     }
 
     getBuddyName(uin) {
