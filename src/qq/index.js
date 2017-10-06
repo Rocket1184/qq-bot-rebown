@@ -332,9 +332,12 @@ class QQ extends EventEmitter {
     getDiscuName(did) {
         let name = this.discuNameMap.get(did);
         if (name) return name;
-        this.discu.some(e => e.did == did ? name = e.name : false);
-        this.discuNameMap.set(did, name);
-        return name;
+        let discu = this.discu
+            .filter(e => e.did == did)
+            .pop();
+        if (!discu) return null;
+        this.discuNameMap.set(did, discu.name);
+        return discu.name;
     }
 
     getDiscuInfo(did) {
@@ -355,24 +358,26 @@ class QQ extends EventEmitter {
         const nameKey = `${did}${uin}`;
         let name = this.discuNameMap.get(nameKey);
         if (name) return name;
-        let discu;
-        for (let d of this.discu) {
-            if (d.did == did) {
-                discu = d;
-                break;
-            }
-        }
+        let discu = this.discu
+            .filter(g => did == g.did)
+            .pop();
+        if (!discu) return null;
         discu.info.mem_info.some(i => i.uin == uin ? name = i.nick : false);
+        // uin not found in discu. might be myself, or newly added member
+        if (!name) name = uin;
         this.discuNameMap.set(nameKey, name);
         return name;
     }
 
-    getGroupName(groupCode) {
-        let name = this.groupNameMap.get(groupCode);
+    getGroupName(gIdOrCode) {
+        let name = this.groupNameMap.get(gIdOrCode);
         if (name) return name;
-        this.group.some(e => e.gid == groupCode ? name = e.name : false);
-        this.groupNameMap.set(groupCode, name);
-        return name;
+        let group = this.group
+            .filter(g => gIdOrCode == g.gid || gIdOrCode == g.code)
+            .pop();
+        if (!group) return null;
+        this.groupNameMap.set(gIdOrCode, group.name);
+        return group.name;
     }
 
     getGroupInfo(code) {
@@ -382,22 +387,18 @@ class QQ extends EventEmitter {
         });
     }
 
-    getNameInGroup(uin, groupCode) {
-        const nameKey = `${groupCode}${uin}`;
+    getNameInGroup(uin, gIdOrCode) {
+        const nameKey = `${gIdOrCode}${uin}`;
         let name = this.groupNameMap.get(nameKey);
         if (name) return name;
-        let group;
-        for (let g of this.group) {
-            if (g.gid == groupCode) {
-                group = g;
-                break;
-            }
-        }
+        let group = this.group
+            .filter(g => gIdOrCode == g.gid || gIdOrCode == g.code)
+            .pop();
+        if (!group) return null;
         group.info.cards.some(i => i.muin == uin ? name = i.card : false);
         if (!name) group.info.minfo.some(i => i.uin == uin ? name = i.nick : false);
-        // uin not found in group members; might be myself ...
-        // fxxk tencent again ...
-        if (!name) name = this.selfInfo.nick;
+        // uin not found in group. might be myself, or newly added member
+        if (!name) name = uin;
         this.groupNameMap.set(nameKey, name);
         return name;
     }

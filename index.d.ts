@@ -201,9 +201,9 @@ export class QQ {
     getDiscuName(did: number): string
     getDiscuInfo(uin: number): Promise<DiscuDetailInfo>
     getNameInDiscu(uin: number, did: number): string
-    getGroupName(groupCode: number): string
+    getGroupName(gIdOrCode: number): string
     getGroupInfo(code: number): Promise<GroupDetailInfo>
-    getNameInGroup(uin: number, groupCode: number): string
+    getNameInGroup(uin: number, gIdOrCode: number): string
     logMessage(msg: Object): void
     handelMsgRecv(msg: Object): void
     loopPoll(): Promise<void>
