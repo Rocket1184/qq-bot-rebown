@@ -313,10 +313,10 @@ class QQ extends EventEmitter {
         log.info('信息初始化完成');
         // invoke cronJobs every `cronTimeout`
         (function cron() {
-            if (this.isAlive) setTimeout(() => {
+            if (this.isAlive) {
                 this.cronJobs.forEach(job => job());
-                setTimeout(() => cron.bind(this), this.options.cronTimeout);
-            }, this.options.cronTimeout);
+                setTimeout(cron.bind(this), this.options.cronTimeout);
+            }
         }).apply(this);
     }
 
