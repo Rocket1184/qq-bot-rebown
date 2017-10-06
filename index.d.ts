@@ -107,6 +107,13 @@ interface QQOptions {
         style?: Array<number> | [0, 0, 0],
         color?: string | '000000'
     },
+    /**
+     * interval to execute cronJobs. unit in `ms`
+     * 
+     * @type {number}
+     * @memberof QQOptions
+     */
+    cronTimeout: number,
     cookiePath?: string | '/tmp/qq-bot.cookie',
     qrcodePath?: string | '/tmp/code.png'
 }
