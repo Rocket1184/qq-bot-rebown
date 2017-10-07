@@ -75,15 +75,15 @@ class QQ extends EventEmitter {
     async run() {
         await this.login();
         this.isAlive = true;
+        await this.initInfo();
         try {
-            await this.initInfo();
+            await this.loopPoll();
         } catch (err) {
             if (err.message === 'disconnect') {
                 this.isAlive = false;
                 return this.run();
             }
         }
-        await this.loopPoll();
     }
 
     async login() {
