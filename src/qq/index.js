@@ -488,6 +488,11 @@ class QQ extends EventEmitter {
                 }
             } finally {
                 log.debug(pollBody);
+                // handle issues #13
+                // https://github.com/Rocket1184/qq-bot-rebown/issues/13
+                if (!pollBody.result) {
+                    pollBody.retcode = -1;
+                }
                 switch (pollBody.retcode) {
                     case 0:
                         if (pollBody.result) {
