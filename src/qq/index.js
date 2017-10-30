@@ -51,6 +51,12 @@ class QQ extends EventEmitter {
         this.buddy = {};
         this.discu = {};
         this.group = {};
+        /**
+         * @typedef {{name: string, uin: number}} BuddyQQNumInfo
+         * @typedef {{gname: string, mems: BuddyQQNumInfo[]}} BuddyGroupMensInfo
+         */
+        /** @type {BuddyGroupMensInfo[]} */
+        this.buddyGroup = [];
         this.buddyNameMap = new Map();
         this.discuNameMap = new Map();
         this.groupNameMap = new Map();
@@ -301,13 +307,13 @@ class QQ extends EventEmitter {
             this.getOnlineBuddies(),
             this.getDiscu(),
             this.getGroup(),
-            this.getNumberInfo(),
+            this.getBuddyGroupInfo(),
         ]);
         log.debug(JSON.stringify(manyInfo, null, 4));
         this.buddy = manyInfo[0].result;
         this.discu = manyInfo[2].result.dnamelist;
         this.group = manyInfo[3].result.gnamelist;
-        this.numberList = manyInfo[4].result;
+        this.buddyGroup = manyInfo[4];
         let promises = this.getAllGroupMembers();
         promises = promises.concat(this.getAllDiscuMembers());
         manyInfo = await Promise.all(promises);
@@ -349,28 +355,58 @@ class QQ extends EventEmitter {
         });
     }
 
-    getNumberInfo() {
-        return this.client.get({
+    /**
+     * buddy group info including group name and real QQ number
+     *
+     * @returns  {BuddyGroupMensInfo[]}
+     * @memberof QQ
+     */
+    async getBuddyGroupInfo() {
+        log.info('开始获取好友分组与真实 QQ 号码');
+        /**
+         * what the fxxk typedef??? fxxk tencent again and again
+         * @type {{ec: number, result: Object.<string, {gname: string, mems: BuddyGroupMensInfo}>}}
+         */
+        const response = await this.client.get({
             url: URL.NumberListInfo(this.client.getCookie('skey')),
             headers: { Referer: URL.refererNumberList }
         });
+        // convert that fuzzy object to array
+        const result = Array.from(
+            Object.assign(
+                response.result,
+                { length: Object.keys(response.result).length }
+            ),
+            (group) => {
+                group.gname = Utils.unEscapeHtml(group.gname);
+                return group;
+            }
+        );
+        return result;
     }
 
-    // 根据name来获取qq用户的qq号码
-    // 备注:如果qq好友中存在同名,只有一个取得到qq号码
-    getNumberByName(name) {
-        if (!this.numberList) {
-            return false;
-        }
-        for (let key in this.numberList) {
-            let mems = this.numberList[key].mems;
-            // console.log({mems});
-            let mem = mems.find(mem => mem.name == name);
-            if (mem) {
-                return mem.uin;
+    /**
+     * get real QQ number by remark name/nickname
+     * returns -1 -> none matched
+     * number -> only one matchs
+     * number[] -> 2 or more match
+     *
+     * @param {any} name 
+     * @returns {number|number[]}
+     * @memberof QQ
+     */
+    getBuddyQQNum(name) {
+        let result = [];
+        for (let buddyGroup of this.buddyGroup) {
+            for (let buddy of buddyGroup) {
+                if (buddy.name === name) result.push(buddy.uin);
             }
         }
-        return false;
+        switch (result.length) {
+            case 0: return -1;
+            case 1: return result[0];
+            default: return result;
+        }
     }
 
     getNameInDiscu(uin, did) {

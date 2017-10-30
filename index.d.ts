@@ -33,6 +33,11 @@ interface UserDetailInfo {
     mobile: string
 }
 
+interface BubbyGroupMensInfo {
+    gname: string
+    mems: Array<{ name: string, uin: number }>
+}
+
 interface GroupDetailInfo {
     stats: Array<{
         client_type: number,
@@ -172,6 +177,7 @@ export class QQ {
          */
         code: number
     }>
+    buddyGroup: Array<BubbyGroupMensInfo>
     buddyNameMap: Map<string, string>
     discuNameMap: Map<string, string>
     groupNameMap: Map<string, string>
@@ -200,6 +206,17 @@ export class QQ {
     getBuddyName(uin: number): string
     getDiscuName(did: number): string
     getDiscuInfo(uin: number): Promise<DiscuDetailInfo>
+    /**
+     * get all buddy and buddy group, including group name and REAL QQ number
+     */
+    async getBubbyGroupInfo(): Array<BubbyGroupMensInfo>
+    /**
+     * get REAL QQ number by buddy remark name / nickname
+     * priority: remark > nickname
+     * it returns array of numbers when 2 or more buddy have same name
+     * it returns -1 if none of your buddy's name matchs the given one
+     */
+    getBuddyQQNum(name: string): number | Array<number> | -1
     getNameInDiscu(uin: number, did: number): string
     getGroupName(gIdOrCode: number): string
     getGroupInfo(code: number): Promise<GroupDetailInfo>
