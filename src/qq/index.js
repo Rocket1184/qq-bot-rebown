@@ -300,12 +300,14 @@ class QQ extends EventEmitter {
             this.getBuddy(),
             this.getOnlineBuddies(),
             this.getDiscu(),
-            this.getGroup()
+            this.getGroup(),
+            this.getNumberInfo(),
         ]);
         log.debug(JSON.stringify(manyInfo, null, 4));
         this.buddy = manyInfo[0].result;
         this.discu = manyInfo[2].result.dnamelist;
         this.group = manyInfo[3].result.gnamelist;
+        this.numberList = manyInfo[4].result;
         let promises = this.getAllGroupMembers();
         promises = promises.concat(this.getAllDiscuMembers());
         manyInfo = await Promise.all(promises);
@@ -350,8 +352,25 @@ class QQ extends EventEmitter {
     getNumberInfo() {
         return this.client.get({
             url: URL.NumberListInfo(this.client.getCookie('skey')),
-            headers: { Referer: URL.refererNumber }
+            headers: { Referer: URL.refererNumberList }
         });
+    }
+
+    // 根据name来获取qq用户的qq号码
+    // 备注:如果qq好友中存在同名,只有一个取得到qq号码
+    getNumberByName(name) {
+        if (!this.numberList) {
+            return false;
+        }
+        for (let key in this.numberList) {
+            let mems = this.numberList[key].mems;
+            // console.log({mems});
+            let mem = mems.find(mem => mem.name == name);
+            if (mem) {
+                return mem.uin;
+            }
+        }
+        return false;
     }
 
     getNameInDiscu(uin, did) {
@@ -395,8 +414,10 @@ class QQ extends EventEmitter {
             .filter(g => gIdOrCode == g.gid || gIdOrCode == g.code)
             .pop();
         if (!group) return null;
-        group.info.cards.some(i => i.muin == uin ? name = i.card : false);
-        if (!name) group.info.minfo.some(i => i.uin == uin ? name = i.nick : false);
+        if (group.info.cards) {
+            group.info.cards.some(i => i.muin == uin ? name = i.card : false);
+        }
+        if (!name && group.info.minfo) group.info.minfo.some(i => i.uin == uin ? name = i.nick : false);
         // uin not found in group. might be myself, or newly added member
         if (!name) name = uin;
         this.groupNameMap.set(nameKey, name);
