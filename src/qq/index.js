@@ -66,22 +66,49 @@ class QQ extends EventEmitter {
         this.isAlive = false;
         // functions to exec every `cronTimeout`
         this.cronJobs = [
+            () => this.getSelfInfo()
+                .then(resp => {
+                    if (resp.retcode === 6) {
+                        Utils.unlinkAsync(this.options.cookiePath);
+                        log.info('Cookie 已过期，需重新登录');
+                        this.emit('disconnect');
+                        throw new Error('disconnect');
+                    } else {
+                        this.selfInfo = resp.result;
+                    }
+                }),
             () => this.getOnlineBuddies(),
             () => this.getBuddy()
-                .then(() => this.buddyNameMap = new Map()),
+                .then(resp => {
+                    this.buddyNameMap = new Map();
+                    this.buddy = resp.result;
+                }),
+            () => this.getBuddyGroupInfo()
+                .then(buddyGroup => this.buddyGroup = buddyGroup),
             () => this.getGroup()
-                .then(() => Promise.all(this.getAllGroupMembers())
-                    .then(() => this.groupNameMap = new Map())),
+                .then(resp => {
+                    this.groupNameMap = new Map();
+                    this.group = resp.result.gnamelist;
+                })
+                .then(() => Promise.all(this.getAllGroupMembers())),
             () => this.getDiscu()
-                .then(() => Promise.all(this.getAllDiscuMembers())
-                    .then(() => this.discuNameMap = new Map()))
+                .then(resp => {
+                    this.discuNameMap = new Map();
+                    this.discu = resp.result.dnamelist;
+                })
+                .then(() => Promise.all(this.getAllDiscuMembers()))
         ];
     }
 
     async run() {
         await this.login();
         this.isAlive = true;
-        await this.initInfo();
+        (function cron() {
+            if (this.isAlive) {
+                this.cronJobs.forEach(job => job());
+                setTimeout(cron.bind(this), this.options.cronTimeout);
+            }
+        }).apply(this);
         try {
             await this.loopPoll();
         } catch (err) {
@@ -293,47 +320,13 @@ class QQ extends EventEmitter {
         });
     }
 
-    async initInfo() {
-        const selfInfo = await this.getSelfInfo();
-        if (selfInfo.retcode === 6) {
-            console.info('Cookie 已过期，需重新登录');
-            await Utils.unlinkAsync(this.options.cookiePath);
-            this.emit('disconnect');
-            throw new Error('disconnect');
-        }
-        this.selfInfo = selfInfo.result;
-        let manyInfo = await Promise.all([
-            this.getBuddy(),
-            this.getOnlineBuddies(),
-            this.getDiscu(),
-            this.getGroup(),
-            this.getBuddyGroupInfo(),
-        ]);
-        log.debug(JSON.stringify(manyInfo, null, 4));
-        this.buddy = manyInfo[0].result;
-        this.discu = manyInfo[2].result.dnamelist;
-        this.group = manyInfo[3].result.gnamelist;
-        this.buddyGroup = manyInfo[4];
-        let promises = this.getAllGroupMembers();
-        promises = promises.concat(this.getAllDiscuMembers());
-        manyInfo = await Promise.all(promises);
-        log.debug(JSON.stringify(manyInfo, null, 4));
-        log.info('信息初始化完成');
-        // invoke cronJobs every `cronTimeout`
-        (function cron() {
-            if (this.isAlive) {
-                this.cronJobs.forEach(job => job());
-                setTimeout(cron.bind(this), this.options.cronTimeout);
-            }
-        }).apply(this);
-    }
-
     getBuddyName(uin) {
         let name = this.buddyNameMap.get(uin);
         if (name) return name;
         this.buddy.marknames.some(e => e.uin == uin ? name = e.markname : false);
         if (!name) this.buddy.info.some(e => e.uin == uin ? name = e.nick : false);
-        this.buddyNameMap.set(uin, name);
+        if (name) this.buddyNameMap.set(uin, name);
+        else name = uin;
         return name;
     }
 
@@ -344,8 +337,9 @@ class QQ extends EventEmitter {
             .filter(e => e.did == did)
             .pop();
         if (!discu) return null;
-        this.discuNameMap.set(did, discu.name);
-        return discu.name;
+        if (name) this.discuNameMap.set(did, discu.name);
+        else name = did;
+        return name;
     }
 
     getDiscuInfo(did) {
@@ -362,7 +356,7 @@ class QQ extends EventEmitter {
      * @memberof QQ
      */
     async getBuddyGroupInfo() {
-        log.info('开始获取好友分组与真实 QQ 号码');
+        log.info('开始获取好友分组与 QQ 号码');
         /**
          * what the fxxk typedef??? fxxk tencent again and again
          * @type {{ec: number, result: Object.<string, {gname: string, mems: BuddyGroupMensInfo}>}}
@@ -372,16 +366,14 @@ class QQ extends EventEmitter {
             headers: { Referer: URL.refererNumberList }
         });
         // convert that fuzzy object to array
-        const result = Array.from(
-            Object.assign(
-                response.result,
-                { length: Object.keys(response.result).length }
-            ),
-            (group) => {
-                group.gname = Utils.unEscapeHtml(group.gname);
-                return group;
-            }
-        );
+        const result = [];
+        for (let key in response.result) {
+            const group = response.result[key];
+            result.push({
+                gname: Utils.unEscapeHtml(group.gname || ''),
+                mems: group.mems
+            });
+        }
         return result;
     }
 
@@ -416,11 +408,10 @@ class QQ extends EventEmitter {
         let discu = this.discu
             .filter(g => did == g.did)
             .pop();
-        if (!discu) return null;
+        if (!discu) return uin;
         discu.info.mem_info.some(i => i.uin == uin ? name = i.nick : false);
-        // uin not found in discu. might be myself, or newly added member
-        if (!name) name = uin;
-        this.discuNameMap.set(nameKey, name);
+        if (name) this.discuNameMap.set(nameKey, name);
+        else name = uin; // uin not found. may self or newly added member
         return name;
     }
 
@@ -430,9 +421,10 @@ class QQ extends EventEmitter {
         let group = this.group
             .filter(g => gIdOrCode == g.gid || gIdOrCode == g.code)
             .pop();
-        if (!group) return null;
-        this.groupNameMap.set(gIdOrCode, group.name);
-        return group.name;
+        if (!group) return gIdOrCode;
+        if (name) this.groupNameMap.set(gIdOrCode, group.name);
+        else name = gIdOrCode;
+        return name;
     }
 
     getGroupInfo(code) {
@@ -454,9 +446,8 @@ class QQ extends EventEmitter {
             group.info.cards.some(i => i.muin == uin ? name = i.card : false);
         }
         if (!name && group.info.minfo) group.info.minfo.some(i => i.uin == uin ? name = i.nick : false);
-        // uin not found in group. might be myself, or newly added member
-        if (!name) name = uin;
-        this.groupNameMap.set(nameKey, name);
+        if (name) this.groupNameMap.set(nameKey, name);
+        else name = uin; // uin not found. may self or newly added member
         return name;
     }
 
@@ -479,10 +470,12 @@ class QQ extends EventEmitter {
         }
     }
 
-    handelMsgRecv(msg) {
+    handleMsgRecv(msg) {
         const content = msg.result[0].value.content.filter(e => typeof e == 'string').join(' ');
         const { value: { from_uin, send_uin }, poll_type } = msg.result[0];
         let msgParsed = { content };
+        // do not handle messages sent by self
+        if (from_uin === this.selfInfo.account || from_uin === this.tokens.uin) return;
         switch (poll_type) {
             case 'message':
                 msgParsed.type = 'buddy';
@@ -506,6 +499,7 @@ class QQ extends EventEmitter {
             default:
                 break;
         }
+        this.logMessage(msg);
         this.emit('msg', msgParsed, msg);
         this.emit(msgParsed.type, msgParsed, msg);
     }
@@ -549,8 +543,7 @@ class QQ extends EventEmitter {
                     case 0:
                         if (pollBody.result) {
                             try {
-                                this.logMessage(pollBody);
-                                this.handelMsgRecv(pollBody);
+                                this.handleMsgRecv(pollBody);
                             } catch (err) {
                                 log.error('Error when handling msg: ', pollBody, err);
                                 this.emit('error', err);
