@@ -1,6 +1,6 @@
 {
   "name": "qq-bot-rebown",
-  "version": "1.2.3",
+  "version": "1.3.0",
   "description": "Web QQ client using es7 syntax",
   "engines": {
     "node": ">=7.6.0"
