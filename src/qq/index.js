@@ -336,10 +336,9 @@ class QQ extends EventEmitter {
         let discu = this.discu
             .filter(e => e.did == did)
             .pop();
-        if (!discu) return null;
-        if (name) this.discuNameMap.set(did, discu.name);
-        else name = did;
-        return name;
+        if (!discu) return did;
+        this.discuNameMap.set(did, discu.name);
+        return discu.name;
     }
 
     getDiscuInfo(did) {
@@ -390,7 +389,7 @@ class QQ extends EventEmitter {
     getBuddyQQNum(name) {
         let result = [];
         for (let buddyGroup of this.buddyGroup) {
-            for (let buddy of buddyGroup) {
+            for (let buddy of buddyGroup.mems) {
                 if (buddy.name === name) result.push(buddy.uin);
             }
         }
@@ -422,9 +421,8 @@ class QQ extends EventEmitter {
             .filter(g => gIdOrCode == g.gid || gIdOrCode == g.code)
             .pop();
         if (!group) return gIdOrCode;
-        if (name) this.groupNameMap.set(gIdOrCode, group.name);
-        else name = gIdOrCode;
-        return name;
+        this.groupNameMap.set(gIdOrCode, group.name);
+        return group.name;
     }
 
     getGroupInfo(code) {
