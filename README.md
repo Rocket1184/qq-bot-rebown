@@ -12,11 +12,11 @@
 - 记录每条收到的消息以及发送者
 - 使用 `EventEmitter` 管理事件（登录、消息、断线等）
 - 缩短 URL （使用 [t.cn](http://open.weibo.com/wiki/2/short_url/shorten) 短链接服务）
+- 获取好友的 QQ 号码
 - **对所有数据提供 .d.ts 类型定义**
 
 ## RouteMap
 
-- [ ] 获取好友的 QQ 号码
 - [ ] 发送图片或文件 (WIP)
 - [ ] 在群中 @ 群成员 (WIP)
 
