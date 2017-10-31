@@ -103,9 +103,11 @@ class QQ extends EventEmitter {
     async run() {
         await this.login();
         this.isAlive = true;
-        (function cron() {
+        // await all info fetched, then continue receiving messages
+        await (async function cron() {
             if (this.isAlive) {
-                this.cronJobs.forEach(job => job());
+                await Promise.all(this.cronJobs.map(job => job()));
+                // execute cronJobs after `cronTimeout`
                 setTimeout(cron.bind(this), this.options.cronTimeout);
             }
         }).apply(this);
