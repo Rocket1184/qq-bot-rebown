@@ -183,11 +183,15 @@ class QQ extends EventEmitter {
                     } else if (arr[0] === '65') {
                         qrCodeExpired = true;
                         this.emit('qr-expire');
-                        log.info(`(1/5) 二维码已失效，重新下载二维码`);
-                    } else await Utils.sleep(2000);
+                        log.info('(1/5) 二维码已失效，重新下载二维码');
+                    } else if (arr[0] === '67') {
+                        log.info('(1/5) 二维码已扫描，请在手机端确认登录');
+                        await Utils.sleep(2000);
+                        continue;
+                    } await Utils.sleep(2000);
                 }
             }
-            log.info('(2/5) 二维码扫描完成');
+            log.info('(2/5) 二维码认证完成');
             Utils.unlinkAsync(this.options.qrcodePath);
 
             // Step3: find token 'vfwebqq' in cookie
@@ -529,7 +533,7 @@ class QQ extends EventEmitter {
                 this.emit('polling', pollBody);
                 if (failCnt > 0) failCnt = 0;
             } catch (err) {
-                log.debug('Request Failed: ', err);
+                log.warning('[loopPoll] Request Failed: ', err);
                 if (err.response && err.response.status === 502)
                     log.info(`出现 502 错误 ${++failCnt} 次，正在重试`);
                 if (failCnt > 10) {
