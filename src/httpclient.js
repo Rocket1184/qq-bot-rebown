@@ -6,7 +6,13 @@ const Log = require('log');
 const Axios = require('axios');
 const Cookie = require('cookie');
 
-const log = global.log || new Log(process.env.LOG_LEVEL || 'info');
+// Extend log.js, add log type `verbose`
+Log.VERBOSE = 8;
+Log.prototype.verbose = function () {
+    this.log('VERBOSE', arguments);
+};
+
+const log = new Log(process.env.LOG_LEVEL || 'info');
 
 function transformHeaders(k, v) {
     if (k === 'Cookie') {
@@ -15,11 +21,13 @@ function transformHeaders(k, v) {
 }
 
 function logResponse(resp) {
-    if (resp) log.debug(`HTTP:
-${(resp.config.method).toUpperCase()} ${resp.config.url}
-Status: ${resp.status} ${resp.statusText}
+    if (resp) {
+        log.debug(`[HttpClient] ${(resp.config.method).toUpperCase()} ${resp.status} ${resp.statusText}
+URL: ${resp.config.url}`);
+        log.verbose(`[HttpClient]
 Response Headers: ${JSON.stringify(resp.headers, null, 2)}
 Request Headers: ${JSON.stringify(resp.config.headers, transformHeaders, 2)}`);
+    }
 }
 
 class HttpClient {
