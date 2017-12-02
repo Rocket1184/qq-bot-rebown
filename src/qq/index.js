@@ -73,28 +73,34 @@ class QQ extends EventEmitter {
                         log.info('Cookie 已过期，需重新登录');
                         this.emit('disconnect');
                         throw new Error('disconnect');
-                    } else {
+                    } else if (resp.result) {
                         this.selfInfo = resp.result;
                     }
                 }),
             () => this.getOnlineBuddies(),
             () => this.getBuddy()
                 .then(resp => {
-                    this.buddyNameMap = new Map();
-                    this.buddy = resp.result;
+                    if (resp.result) {
+                        this.buddyNameMap = new Map();
+                        this.buddy = resp.result;
+                    }
                 }),
             () => this.getBuddyGroupInfo()
                 .then(buddyGroup => this.buddyGroup = buddyGroup),
             () => this.getGroup()
                 .then(resp => {
-                    this.groupNameMap = new Map();
-                    this.group = resp.result.gnamelist;
+                    if (resp.result.gnamelist) {
+                        this.groupNameMap = new Map();
+                        this.group = resp.result.gnamelist;
+                    }
                 })
                 .then(() => Promise.all(this.getAllGroupMembers())),
             () => this.getDiscu()
                 .then(resp => {
-                    this.discuNameMap = new Map();
-                    this.discu = resp.result.dnamelist;
+                    if (resp.result.dnamelist) {
+                        this.discuNameMap = new Map();
+                        this.discu = resp.result.dnamelist;
+                    }
                 })
                 .then(() => Promise.all(this.getAllDiscuMembers()))
         ];
