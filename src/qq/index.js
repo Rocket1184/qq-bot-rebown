@@ -10,15 +10,28 @@ const Codec = require('../codec');
 const Utils = require('../utils');
 const Client = require('../httpclient');
 const MessageAgent = require('./message-agent');
+const HeadLess = require('./headless');
 
 const log = global.log || new Log(process.env.LOG_LEVEL || 'info');
 
 class QQ extends EventEmitter {
+    static get LOGIN() { 
+        return {
+            QR: 0,
+            PWD: 1
+        };
+    }
+
     static get defaultOptions() {
         return {
             app: {
                 clientid: 53999199,
-                appid: 501004106
+                appid: 501004106,
+                login: QQ.LOGIN.QR
+            },
+            auth: {
+                u: '',
+                p: ''
             },
             font: {
                 name: '宋体',
@@ -33,9 +46,16 @@ class QQ extends EventEmitter {
     }
 
     static parseOptions(opt) {
-        const app = Object.assign(QQ.defaultOptions.app, opt.app);
-        const font = Object.assign(QQ.defaultOptions.font, opt.font);
-        return Object.assign(QQ.defaultOptions, opt, { app, font });
+        const dflt = QQ.defaultOptions;
+        const app = Object.assign(dflt.app, opt.app);
+        const auth = Object.assign(dflt.auth, opt.auth);
+        const font = Object.assign(dflt.font, opt.font);
+        if (app.login === QQ.LOGIN.PWD) {
+            if(!auth.u || !auth.p) {
+                throw new Error('auth.u and auth.p must be specificed when using pwd login mode.');
+            }
+        }
+        return Object.assign(QQ.defaultOptions, opt, { app, auth, font });
     }
 
     constructor(options = {}) {
@@ -130,6 +150,13 @@ class QQ extends EventEmitter {
     async login() {
         this.emit('login');
         beforeGotVfwebqq: {
+            if (this.options.app.login === QQ.LOGIN.PWD) {
+                log.info('(-/5) 帐号密码登录');
+                const tokens = await HeadLess.getTokens(this.options.auth.u, this.options.auth.p);
+                log.info('(-/5) 帐号密码验证成功');
+                this.client.setCookie(tokens.cookieStr);
+                break beforeGotVfwebqq;
+            }
             if (await Utils.existAsync(this.options.cookiePath)) {
                 try {
                     const cookieFile = await Utils.readFileAsync(this.options.cookiePath, 'utf-8');
@@ -147,7 +174,7 @@ class QQ extends EventEmitter {
                     this.emit('cookie-invalid');
                 }
             }
-            log.info('(0/5) 开始登录，准备下载二维码');
+            log.info('(0/5) 二维码登录，准备下载二维码');
 
             // Step0: prepare cookies, pgv_info and pgv_pvid
             // http://pingjs.qq.com/tcss.ping.js  tcss.run & _cookie.init
@@ -200,7 +227,7 @@ class QQ extends EventEmitter {
             log.info('(2/5) 二维码认证完成');
             Utils.unlinkAsync(this.options.qrcodePath);
 
-            // Step3: find token 'vfwebqq' in cookie
+            // Step3: find token 'ptwebqq' in cookie
             // NOTICE: the request returns 302 when success. DO NOT REJECT 302.
             await this.client.get({
                 url: ptlogin4URL,
