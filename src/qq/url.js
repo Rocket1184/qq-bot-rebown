@@ -14,7 +14,7 @@ const bknHash = function(skey, init_str = 5381) {
 module.exports = {
     loginPrepare: 'https://ui.ptlogin2.qq.com/cgi-bin/login?daid=164&target=self&style=16&mibao_css=m_webqq&appid=501004106&enable_qlogin=0&no_verifyimg=1&s_url=http%3A%2F%2Fw.qq.com%2Fproxy.html&f_url=loginerroralert&strong_login=1&login_state=10&t=20131024001',
     get qrcode() {
-        return `https://ssl.ptlogin2.qq.com/ptqrshow?appid=501004106&e=0&l=M&s=5&d=72&v=4&t=${Math.random()}`;
+        return `https://ssl.ptlogin2.qq.com/ptqrshow?appid=501004106&e=0&l=M&s=5&d=72&v=4&t=${Date.now()}`;
     },
     getPtqrloginURL(qrsig) {
         const decoded = Codec.decodeQrsig(qrsig);
@@ -22,7 +22,7 @@ module.exports = {
     },
     ptqrloginReferer: 'https://ui.ptlogin2.qq.com/cgi-bin/login?daid=164&target=self&style=16&mibao_css=m_webqq&appid=501004106&enable_qlogin=0&no_verifyimg=1&s_url=http%3A%2F%2Fw.qq.com%2Fproxy.html&f_url=loginerroralert&strong_login=1&login_state=10&t=20131024001',
     ptlogin4Referer: 'http://s.web2.qq.com/proxy.html?v=20130916001&callback=1&id=1',
-    getVfwebqqURL: ptwebqq => `http://s.web2.qq.com/api/getvfwebqq?ptwebqq=${ptwebqq}&clientid=53999199&psessionid=&t=${Math.random()}`,
+    getVfwebqqURL: ptwebqq => `http://s.web2.qq.com/api/getvfwebqq?ptwebqq=${ptwebqq}&clientid=53999199&psessionid=&t=${Date.now()}`,
     vfwebqqReferer: 'http://s.web2.qq.com/proxy.html?v=20130916001&callback=1&id=1',
     login2: 'http://d1.web2.qq.com/channel/login2',
     login2Origin: 'http://d1.web2.qq.com',
@@ -37,15 +37,14 @@ module.exports = {
     groupMsg: 'http://d1.web2.qq.com/channel/send_qun_msg2',
     discuMsg: 'http://d1.web2.qq.com/channel/send_discu_msg2',
     getBuddy: 'http://s.web2.qq.com/api/get_user_friends2',
-    onlineBuddies: (vfwebqq, psessionid) => `http://d1.web2.qq.com/channel/get_online_buddies2?vfwebqq=${vfwebqq}&clientid=53999199&psessionid=${psessionid}&t=${Math.random()}`,
-    buddyInfo: (uin, vfwebqq, psessionid) => `http://s.web2.qq.com/api/get_friend_info2?tuin=${uin}&vfwebqq=${vfwebqq}&clientid=53999199&psessionid=${psessionid}&t=${Math.random()}`,
-    buddyQQID: (uin, vfwebqq) => `http://s.web2.qq.com/api/get_friend_uin2?tuid=${uin}&type=1&vfwebqq=${vfwebqq}&t=${Math.random()}`,
-    getDiscu: (vfwebqq, psessionid) => `http://s.web2.qq.com/api/get_discus_list?clientid=53999199&psessionid=${psessionid}&vfwebqq=${vfwebqq}&t=${Math.random()}`,
-    discuInfo: (discuss_id, psessionid, vfwebqq) => `http://d1.web2.qq.com/channel/get_discu_info?did=${discuss_id}&psessionid=${psessionid}&vfwebqq=${vfwebqq}&clientid=53999199&t=${Math.random()}`,
+    onlineBuddies: (vfwebqq, psessionid) => `http://d1.web2.qq.com/channel/get_online_buddies2?vfwebqq=${vfwebqq}&clientid=53999199&psessionid=${psessionid}&t=${Date.now()}`,
+    buddyInfo: (uin, vfwebqq, psessionid) => `http://s.web2.qq.com/api/get_friend_info2?tuin=${uin}&vfwebqq=${vfwebqq}&clientid=53999199&psessionid=${psessionid}&t=${Date.now()}`,
+    buddyQQID: (uin, vfwebqq) => `http://s.web2.qq.com/api/get_friend_uin2?tuid=${uin}&type=1&vfwebqq=${vfwebqq}&t=${Date.now()}`,
+    getDiscu: (vfwebqq, psessionid) => `http://s.web2.qq.com/api/get_discus_list?clientid=53999199&psessionid=${psessionid}&vfwebqq=${vfwebqq}&t=${Date.now()}`,
+    discuInfo: (discuss_id, psessionid, vfwebqq) => `http://d1.web2.qq.com/channel/get_discu_info?did=${discuss_id}&psessionid=${psessionid}&vfwebqq=${vfwebqq}&clientid=53999199&t=${Date.now()}`,
     getGroup: 'http://s.web2.qq.com/api/get_group_name_list_mask2',
-    groupInfo: (group_code, vfwebqq) => `http://s.web2.qq.com/api/get_group_info_ext2?gcode=${group_code}&vfwebqq=${vfwebqq}&t=${Math.random()}`,
-    // adds
+    groupInfo: (group_code, vfwebqq) => `http://s.web2.qq.com/api/get_group_info_ext2?gcode=${group_code}&vfwebqq=${vfwebqq}&t=${Date.now()}`,
     // 获取好友qq号码
-    NumberListInfo: (skey) => `http://qun.qq.com/cgi-bin/qun_mgr/get_friend_list?bkn=${bknHash(skey)}`,
-    refererNumberList:`http://qun.qq.com/member.html`
+    buddyGroupInfo: (skey) => `http://qun.qq.com/cgi-bin/qun_mgr/get_friend_list?bkn=${bknHash(skey)}`,
+    refererQun:`http://qun.qq.com/member.html`
 };

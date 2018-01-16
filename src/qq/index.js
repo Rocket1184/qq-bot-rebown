@@ -400,8 +400,8 @@ class QQ extends EventEmitter {
          * @type {{ec: number, result: Object.<string, {gname: string, mems: BuddyGroupMensInfo}>}}
          */
         const response = await this.client.get({
-            url: URL.NumberListInfo(this.client.getCookie('skey')),
-            headers: { Referer: URL.refererNumberList }
+            url: URL.buddyGroupInfo(this.client.getCookie('skey')),
+            headers: { Referer: URL.refererQun }
         });
         // convert that fuzzy object to array
         const result = [];
