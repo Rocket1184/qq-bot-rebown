@@ -104,7 +104,12 @@ interface DiscuDetailInfo {
 interface QQOptions {
     app?: {
         clientid?: number,
-        appid?: number
+        appid?: number,
+        /** 
+         * Login method. Can be {QQ.LOGIN.QR | QQ.LOGIN.PWD} .
+         * Using QR Code login at default.
+         */
+        login?: QQ.LOGIN.QR | QQ.LOGIN.PWD
     },
     font?: {
         name?: string,
@@ -112,18 +117,31 @@ interface QQOptions {
         style?: Array<number> | [0, 0, 0],
         color?: string | '000000'
     },
+    auth?: {
+        /** QQ id to use in id/pwd login */
+        u: string,
+        /** QQ pwd to use in id/pwd login. should NOT encrypt */
+        p: string
+    },
     /**
      * interval to execute cronJobs. unit in `ms`
      * 
      * @type {number}
      * @memberof QQOptions
      */
-    cronTimeout: number,
+    cronTimeout?: number,
     cookiePath?: string | '/tmp/qq-bot.cookie',
     qrcodePath?: string | '/tmp/code.png'
 }
 
 export class QQ {
+    /** login method constants */
+    static LOGIN = {
+        /** scan QR Code */
+        QR: 0,
+        /** use id/pwd. specify in constructor. */
+        PWD: 1
+    }
     constructor(options: QQOptions)
     options: QQOptions
     tokens: {
@@ -245,13 +263,6 @@ export class QQ {
      * @memberof QQ
      */
     on(event: 'cookie-relogin')
-    /**
-     * found cookie file but in bad format
-     * 
-     * @param {'cookie-invalid'} event 
-     * @memberof QQ
-     */
-    on(event: 'cookie-invalid')
     /**
      * QR-Code downloaded, about to scan
      * 
