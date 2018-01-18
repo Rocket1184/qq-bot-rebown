@@ -15,7 +15,7 @@ const HeadLess = require('./headless');
 const log = global.log || new Log(process.env.LOG_LEVEL || 'info');
 
 class QQ extends EventEmitter {
-    static get LOGIN() { 
+    static get LOGIN() {
         return {
             QR: 0,
             PWD: 1
@@ -51,7 +51,7 @@ class QQ extends EventEmitter {
         const auth = Object.assign(dflt.auth, opt.auth);
         const font = Object.assign(dflt.font, opt.font);
         if (app.login === QQ.LOGIN.PWD) {
-            if(!auth.u || !auth.p) {
+            if (!auth.u || !auth.p) {
                 throw new Error('auth.u and auth.p must be specificed when using pwd login mode.');
             }
         }
@@ -83,16 +83,14 @@ class QQ extends EventEmitter {
         this.client = new Client();
         this.messageAgent = null;
         // true if QQBot still online/trying to online
-        this.isAlive = false;
+        this._alive = false;
         // functions to exec every `cronTimeout`
         this.cronJobs = [
             () => this.getSelfInfo()
                 .then(resp => {
                     if (resp.retcode === 6) {
                         Utils.unlinkAsync(this.options.cookiePath);
-                        log.info('Cookie 已过期，需重新登录');
-                        this.emit('disconnect');
-                        throw new Error('disconnect');
+                        this._alive = false;
                     } else if (resp.result) {
                         this.selfInfo = resp.result;
                     }
@@ -128,10 +126,10 @@ class QQ extends EventEmitter {
 
     async run() {
         await this.login();
-        this.isAlive = true;
+        this._alive = true;
         // await all info fetched, then continue receiving messages
         await (async function cron() {
-            if (this.isAlive) {
+            if (this._alive) {
                 await Promise.all(this.cronJobs.map(job => job()));
                 // execute cronJobs after `cronTimeout`
                 setTimeout(cron.bind(this), this.options.cronTimeout);
@@ -141,7 +139,6 @@ class QQ extends EventEmitter {
             await this.loopPoll();
         } catch (err) {
             if (err.message === 'disconnect') {
-                this.isAlive = false;
                 return this.run();
             }
         }
@@ -158,21 +155,16 @@ class QQ extends EventEmitter {
                 break beforeGotVfwebqq;
             }
             if (await Utils.existAsync(this.options.cookiePath)) {
-                try {
-                    const cookieFile = await Utils.readFileAsync(this.options.cookiePath, 'utf-8');
-                    const cookieText = cookieFile.toString();
-                    log.info('(-/5) 检测到 cookie 文件，尝试自动登录');
-                    this.emit('cookie-relogin');
-                    this.tokens.ptwebqq = cookieText.match(/ptwebqq=(.+?);/)[1];
-                    this.client.setCookie(cookieText);
-                    // skip this label if found cookie, goto Step4
-                    break beforeGotVfwebqq;
-                } catch (err) {
-                    this.tokens.ptwebqq = '';
-                    Utils.unlinkAsync(this.options.cookiePath);
-                    log.info('(-/5) Cookie 文件非法，自动登录失败');
-                    this.emit('cookie-invalid');
-                }
+                const cookieFile = await Utils.readFileAsync(this.options.cookiePath, 'utf-8');
+                const cookieText = cookieFile.toString();
+                log.info('(-/5) 检测到 cookie 文件，尝试自动登录');
+                this.emit('cookie-relogin');
+                const ptwebqqMatch = cookieText.match(/ptwebqq=(.+?);/);
+                // ptwebqq can be an empty string if login with id/pwd
+                this.tokens.ptwebqq = ptwebqqMatch ? ptwebqqMatch[1] : '';
+                this.client.setCookie(cookieText);
+                // skip this label if found cookie, goto Step4
+                break beforeGotVfwebqq;
             }
             log.info('(0/5) 二维码登录，准备下载二维码');
 
@@ -205,7 +197,7 @@ class QQ extends EventEmitter {
                 while (!scanSuccess && !qrCodeExpired) {
                     const responseBody = await this.client.get({
                         url: ptqrloginURL,
-                        headers: { Referer: URL.ptqrloginReferer },
+                        headers: { Referer: URL.loginPrepare },
                     });
                     log.debug(responseBody.trim());
                     const arr = responseBody.match(quotRegxp).map(i => i.substring(1, i.length - 1));
@@ -233,7 +225,7 @@ class QQ extends EventEmitter {
                 url: ptlogin4URL,
                 maxRedirects: 0,     // Axios follows redirect automatically, but we need to disable it here.
                 validateStatus: status => status === 302,
-                headers: { Referer: URL.ptlogin4Referer }
+                headers: { Referer: URL.referer130916 }
             });
             this.tokens.ptwebqq = this.client.getCookie('ptwebqq');
             log.info('(3/5) 获取 ptwebqq 成功');
@@ -242,7 +234,7 @@ class QQ extends EventEmitter {
         // Step4: request token 'vfwebqq'
         const vfwebqqResp = await this.client.get({
             url: URL.getVfwebqqURL(this.tokens.ptwebqq),
-            headers: { Referer: URL.vfwebqqReferer }
+            headers: { Referer: URL.referer130916 }
         });
         log.debug(vfwebqqResp);
         try {
@@ -265,8 +257,8 @@ class QQ extends EventEmitter {
                 status: "online",
             },
             headers: {
-                Origin: URL.login2Origin,
-                Referer: URL.login2Referer
+                Origin: URL.originD1,
+                Referer: URL.referer151105
             }
         });
         log.debug(loginStat);
@@ -546,6 +538,12 @@ class QQ extends EventEmitter {
         log.info('开始接收消息...');
         let failCnt = 0;
         do {
+            // check if still alive before polling
+            if (!this._alive) {
+                log.info('Cookie 已过期，需重新登录');
+                this.emit('disconnect');
+                return;
+            }
             let pollBody;
             try {
                 pollBody = await this.client.post({
@@ -557,7 +555,7 @@ class QQ extends EventEmitter {
                         key: ''
                     },
                     headers: {
-                        Origin: URL.msgOrigin,
+                        Origin: URL.originD1,
                         Referer: URL.referer151105
                     },
                     responseType: 'text',
@@ -571,6 +569,7 @@ class QQ extends EventEmitter {
                     log.info(`出现 502 错误 ${++failCnt} 次，正在重试`);
                 if (failCnt > 10) {
                     log.error(`服务器 502 错误超过 ${failCnt} 次，连接已断开`);
+                    this._alive = false;
                     this.emit('disconnect');
                     throw new Error('disconnect');
                 }
@@ -594,6 +593,11 @@ class QQ extends EventEmitter {
                         log.info('登录状态已失效，连接断开');
                         this.emit('disconnect');
                         throw new Error('disconnect');
+                    case 100012:
+                        const match = /cost\[(\d+\.\d+s)\]$/.exec(pollBody.retmsg);
+                        // I NEED OPTIONAL CHAINING!!!
+                        log.info(`在过去的${match ? ` ${match[1]} ` : '一段时间'}内没有收到消息`);
+                        break;
                     default:
                         log.notice('未知的 retcode: ', pollBody.retcode);
                         log.notice(pollBody);
