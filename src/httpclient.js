@@ -26,7 +26,8 @@ function logResponse(resp) {
 URL: ${resp.config.url}`);
         log.verbose(`[HttpClient]
 Response Headers: ${JSON.stringify(resp.headers, null, 2)}
-Request Headers: ${JSON.stringify(resp.config.headers, transformHeaders, 2)}`);
+Request Headers: ${JSON.stringify(resp.config.headers, transformHeaders, 2)}
+Response Body: ${typeof resp.data === 'object' ? JSON.stringify(resp.data, null, 2) :resp.data}`);
     }
 }
 
