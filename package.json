@@ -21,10 +21,12 @@
   "dependencies": {
     "axios": "^0.17.1",
     "cookie": "^0.3.1",
-    "log": "^1.4.0",
-    "puppeteer": "^1.0.0"
+    "log": "^1.4.0"
   },
   "devDependencies": {
     "@types/cookie": "^0.3.1"
+  },
+  "optionalDependencies": {
+    "puppeteer": "^1.0.0"
   }
 }
