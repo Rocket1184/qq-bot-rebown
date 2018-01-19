@@ -1,7 +1,8 @@
 'use strict';
 
 const { QQ } = require('.');
-const qq = new QQ({ cookiePath: '/tmp/my-qq-bot.cookie' });
+
+const qq = new QQ();
 
 qq.on('msg', (msg) => {
     console.log(JSON.stringify(msg));

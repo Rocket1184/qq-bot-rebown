@@ -8,11 +8,11 @@
 ## Features
 
 - 扫码登录
+- 密码登录 （powered by [`puppeteer`](https://github.com/GoogleChrome/puppeteer)）
 - 使用最近一次登录过的 Cookie 自动登录
 - 记录每条收到的消息以及发送者
 - 使用 `EventEmitter` 管理事件（登录、消息、断线等）
 - 缩短 URL （使用 [t.cn](http://open.weibo.com/wiki/2/short_url/shorten) 短链接服务）
-- 获取好友的 QQ 号码
 - **对所有数据提供 .d.ts 类型定义**
 
 ## RouteMap
@@ -27,6 +27,8 @@
 ```js
 const { QQ } = require('qq-bot-rebown');
 
+// 构造函数可以添加参数
+// 详情参阅 [tsd 类型定义文件](./index.d.ts) 中 QQOptions 部分
 const qq = new QQ();
 
 // 设置 “收到消息” 事件监听
@@ -43,7 +45,7 @@ qq.on('buddy', (msg) => {
 qq.run();
 ```
 
-浏览器打开 [http://localhost:8721/code](http://localhost:8721/code) , 扫描二维码并允许登录。
+若系统支持，程序将自动打开二维码，请扫码并允许登录。
 
 ### Output
 
@@ -68,8 +70,6 @@ qq.run();
 {"content":"Hello","type":"buddy","id":3249866953,"name":"Pugna"}
 [Tue Sep 26 2017 19:58:47 GMT+0800 (CST)] INFO 发消息给好友 Pugna : Hello, Pugna
 ```
-
-更多示例，请参考 [example.js](./example.js)
 
 ## Docs
 
