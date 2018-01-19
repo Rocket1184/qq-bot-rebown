@@ -68,9 +68,15 @@ class QQ extends EventEmitter {
             psessionid: ''
         };
         this.selfInfo = {};
-        this.buddy = {};
-        this.discu = {};
-        this.group = {};
+        this.buddy = {
+            friends: [],
+            marknames: [],
+            categories: [],
+            vipinfo: [],
+            info: []
+        };
+        this.discu = [];
+        this.group = [];
         /**
          * @typedef {{name: string, uin: number}} BuddyQQNumInfo
          * @typedef {{gname: string, mems: BuddyQQNumInfo[]}} BuddyGroupMensInfo
@@ -94,7 +100,6 @@ class QQ extends EventEmitter {
             () => this.getSelfInfo()
                 .then(resp => {
                     if (resp.retcode === 6) {
-                        Utils.unlinkAsync(this.options.cookiePath);
                         this._alive = false;
                     } else if (resp.result) {
                         this.selfInfo = resp.result;
@@ -116,7 +121,7 @@ class QQ extends EventEmitter {
             //     .then(buddyGroup => this.buddyGroup = buddyGroup),
             () => this.getGroup()
                 .then(resp => {
-                    if (resp.result.gnamelist) {
+                    if (resp.result && resp.result.gnamelist) {
                         this.groupNameMap = new Map();
                         this.group = resp.result.gnamelist;
                     }
@@ -124,7 +129,7 @@ class QQ extends EventEmitter {
                 .then(() => Promise.all(this.getAllGroupMembers())),
             () => this.getDiscu()
                 .then(resp => {
-                    if (resp.result.dnamelist) {
+                    if (resp.result && resp.result.dnamelist) {
                         this.discuNameMap = new Map();
                         this.discu = resp.result.dnamelist;
                     }
@@ -148,6 +153,7 @@ class QQ extends EventEmitter {
             await this.loopPoll();
         } catch (err) {
             if (err.message === 'disconnect') {
+                log.info('尝试重新登录');
                 return this.run();
             }
         }
@@ -156,13 +162,7 @@ class QQ extends EventEmitter {
     async login() {
         this.emit('login');
         beforeGotVfwebqq: {
-            if (this.options.app.login === QQ.LOGIN.PWD) {
-                log.info('(-/5) 帐号密码登录');
-                const tokens = await HeadLess.getTokens(this.options.auth.u, this.options.auth.p);
-                log.info('(-/5) 帐号密码验证成功');
-                this.client.setCookie(tokens.cookieStr);
-                break beforeGotVfwebqq;
-            }
+            // cookie file exists, try login with it
             if (await Utils.existAsync(this.options.cookiePath)) {
                 const cookieFile = await Utils.readFileAsync(this.options.cookiePath, 'utf-8');
                 const cookieText = cookieFile.toString();
@@ -175,6 +175,25 @@ class QQ extends EventEmitter {
                 // skip this label if found cookie, goto Step4
                 break beforeGotVfwebqq;
             }
+            // id/pwd login have a higher prioirty than QR Code login
+            if (this.options.app.login === QQ.LOGIN.PWD) {
+                let puppeteer;
+                try {
+                    puppeteer = require('puppeteer');
+                } catch (err) {
+                    log.warning(`要使用帐号密码登录，请先安装 puppeteer`);
+                    log.info(`切换回二维码登录`);
+                }
+                if (puppeteer) {
+                    log.info('(-/5) 帐号密码登录');
+                    const tokens = await HeadLess.getTokens(this.options.auth.u, this.options.auth.p);
+                    log.info('(-/5) 帐号密码验证成功');
+                    this.client.setCookie(tokens.cookieStr);
+                    // goto Step4
+                    break beforeGotVfwebqq;
+                }
+            }
+            // use QR Code login as fallback option
             log.info('(0/5) 二维码登录，准备下载二维码');
 
             // Step0: prepare cookies, pgv_info and pgv_pvid
@@ -250,8 +269,8 @@ class QQ extends EventEmitter {
             this.tokens.vfwebqq = vfwebqqResp.result.vfwebqq;
             log.info('(4/5) 获取 vfwebqq 成功');
         } catch (err) {
+            log.info('(-/5) Cookie 已失效，删除 Cookie 文件并重新登录');
             Utils.unlinkAsync(this.options.cookiePath);
-            log.info('(-/5) Cookie 已失效，切换到扫码登录');
             this.emit('cookie-expire');
             return this.login();
         }
@@ -558,9 +577,9 @@ class QQ extends EventEmitter {
         do {
             // check if still alive before polling
             if (!this._alive) {
-                log.info('Cookie 已过期，需重新登录');
+                log.info('连接已断开，停止轮询');
                 this.emit('disconnect');
-                return;
+                throw new Error('disconnect');
             }
             let pollBody;
             try {
@@ -586,10 +605,11 @@ class QQ extends EventEmitter {
                 if (err.response && err.response.status === 502)
                     log.info(`出现 502 错误 ${++failCnt} 次，正在重试`);
                 if (failCnt > 10) {
-                    log.error(`服务器 502 错误超过 ${failCnt} 次，连接已断开`);
+                    log.error(`服务器 502 错误超过 ${failCnt} 次，断开连接`);
                     this._alive = false;
-                    this.emit('disconnect');
-                    throw new Error('disconnect');
+                    // set this._alive to false and enter next loop
+                    // before next polling, it would throw Error('disconnect')
+                    continue;
                 }
             }
             log.debug(pollBody);
@@ -608,17 +628,16 @@ class QQ extends EventEmitter {
                     await this.getOnlineBuddies();
                     break;
                 case 100001:
-                    log.info('登录状态已失效，连接断开');
-                    this.emit('disconnect');
-                    throw new Error('disconnect');
+                    log.info('登录状态失效');
+                    this._alive = false;
+                    break;
                 case 100012: // eslint-disable-line no-case-declarations
                     const match = /cost\[(\d+\.\d+s)\]$/.exec(pollBody.retmsg);
                     // I NEED OPTIONAL CHAINING!!!
                     log.info(`在过去的${match ? ` ${match[1]} ` : '一段时间'}内没有收到消息`);
                     break;
                 default:
-                    log.notice('未知的 retcode: ', pollBody.retcode);
-                    log.notice(pollBody);
+                    log.notice(`未知的 retcode: ${pollBody.retcode}\n${JSON.stringify(pollBody, null, 2)}`);
                     break;
             }
         } while (true); // eslint-disable-line no-constant-condition
@@ -630,6 +649,7 @@ class QQ extends EventEmitter {
             data: this.messageAgent.build(type, id, content),
             headers: { Referer: URL.referer151105 }
         });
+        // TODO: Check if msg was sent successfully
         log.debug(resp);
         /* it returns
          * { errmsg: 'error!!!', retcode: 100100 }
