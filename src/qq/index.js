@@ -75,7 +75,12 @@ class QQ extends EventEmitter {
          * @typedef {{name: string, uin: number}} BuddyQQNumInfo
          * @typedef {{gname: string, mems: BuddyQQNumInfo[]}} BuddyGroupMensInfo
          */
-        /** @type {BuddyGroupMensInfo[]} */
+        /** 
+         * TODO: remove this
+         * @deprecated
+         * API (/get_friend_list) have been removed, so it's empty ...
+         * @type {BuddyGroupMensInfo[]} 
+         */
         this.buddyGroup = [];
         this.buddyNameMap = new Map();
         this.discuNameMap = new Map();
@@ -103,8 +108,12 @@ class QQ extends EventEmitter {
                         this.buddy = resp.result;
                     }
                 }),
-            () => this.getBuddyGroupInfo()
-                .then(buddyGroup => this.buddyGroup = buddyGroup),
+            /** 
+             * TODO: remove this
+             * this API was removed by Tencent 
+             */
+            // () => this.getBuddyGroupInfo()
+            //     .then(buddyGroup => this.buddyGroup = buddyGroup),
             () => this.getGroup()
                 .then(resp => {
                     if (resp.result.gnamelist) {
@@ -380,10 +389,16 @@ class QQ extends EventEmitter {
     }
 
     /**
+     * TODO: remove this
+     * @deprecated
+     * this API (/get_friend_list) has been removed.
+     * It can only return 
+     * ```json
+     * {"ec":1,"em":"no&nbsp;login"}
+     * ```
      * buddy group info including group name and real QQ number
      *
      * @returns  {BuddyGroupMensInfo[]}
-     * @memberof QQ
      */
     async getBuddyGroupInfo() {
         log.info('开始获取好友分组与 QQ 号码');
@@ -408,6 +423,10 @@ class QQ extends EventEmitter {
     }
 
     /**
+     * TODO: remove this
+     * @deprecated
+     * cannot get anything because API (/get_friend_list) has been removed.
+     * 
      * get real QQ number by remark name/nickname
      * returns -1 -> none matched
      * number -> only one matchs
@@ -415,7 +434,6 @@ class QQ extends EventEmitter {
      *
      * @param {any} name 
      * @returns {number|number[]}
-     * @memberof QQ
      */
     getBuddyQQNum(name) {
         let result = [];
@@ -573,38 +591,37 @@ class QQ extends EventEmitter {
                     this.emit('disconnect');
                     throw new Error('disconnect');
                 }
-            } finally {
-                log.debug(pollBody);
-                switch (pollBody.retcode) {
-                    case 0:
-                        if (pollBody.result) {
-                            try {
-                                this.handleMsgRecv(pollBody);
-                            } catch (err) {
-                                log.error('Error when handling msg: ', pollBody, err);
-                                this.emit('error', err);
-                            }
-                        }
-                        break;
-                    case 103:
-                        await this.getOnlineBuddies();
-                        break;
-                    case 100001:
-                        log.info('登录状态已失效，连接断开');
-                        this.emit('disconnect');
-                        throw new Error('disconnect');
-                    case 100012:
-                        const match = /cost\[(\d+\.\d+s)\]$/.exec(pollBody.retmsg);
-                        // I NEED OPTIONAL CHAINING!!!
-                        log.info(`在过去的${match ? ` ${match[1]} ` : '一段时间'}内没有收到消息`);
-                        break;
-                    default:
-                        log.notice('未知的 retcode: ', pollBody.retcode);
-                        log.notice(pollBody);
-                        break;
-                }
             }
-        } while (true);
+            log.debug(pollBody);
+            switch (pollBody.retcode) {
+                case 0:
+                    if (pollBody.result) {
+                        try {
+                            this.handleMsgRecv(pollBody);
+                        } catch (err) {
+                            log.error('Error when handling msg: ', pollBody, err);
+                            this.emit('error', err);
+                        }
+                    }
+                    break;
+                case 103:
+                    await this.getOnlineBuddies();
+                    break;
+                case 100001:
+                    log.info('登录状态已失效，连接断开');
+                    this.emit('disconnect');
+                    throw new Error('disconnect');
+                case 100012: // eslint-disable-line no-case-declarations
+                    const match = /cost\[(\d+\.\d+s)\]$/.exec(pollBody.retmsg);
+                    // I NEED OPTIONAL CHAINING!!!
+                    log.info(`在过去的${match ? ` ${match[1]} ` : '一段时间'}内没有收到消息`);
+                    break;
+                default:
+                    log.notice('未知的 retcode: ', pollBody.retcode);
+                    log.notice(pollBody);
+                    break;
+            }
+        } while (true); // eslint-disable-line no-constant-condition
     }
 
     async innerSendMsg(url, type, id, content) {

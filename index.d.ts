@@ -195,6 +195,11 @@ export class QQ {
          */
         code: number
     }>
+    /**
+     * TODO: remove this
+     * @deprecated
+     * API (/get_friend_list) have been removed, so it's empty ...
+     */
     buddyGroup: Array<BubbyGroupMensInfo>
     buddyNameMap: Map<string, string>
     discuNameMap: Map<string, string>
@@ -225,10 +230,22 @@ export class QQ {
     getDiscuName(did: number): string
     getDiscuInfo(uin: number): Promise<DiscuDetailInfo>
     /**
+     * TODO: remove this
+     * @deprecated
+     * this API (/get_friend_list) has been removed.
+     * It can only return 
+     * ```json
+     * {"ec":1,"em":"no&nbsp;login"}
+     * ```
+     * 
      * get all buddy and buddy group, including group name and REAL QQ number
      */
     async getBubbyGroupInfo(): Array<BubbyGroupMensInfo>
     /**
+     * TODO: remove this
+     * @deprecated
+     * cannot get anything because API (/get_friend_list) has been removed.
+     * 
      * get REAL QQ number by buddy remark name / nickname
      * priority: remark > nickname
      * it returns array of numbers when 2 or more buddy have same name
