@@ -13,6 +13,7 @@ module.exports = {
         }
     },
     rules: {
+        semi: 'error',
         'no-console': 'off'
     }
 };
