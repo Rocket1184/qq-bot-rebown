@@ -262,8 +262,7 @@ export class QQ {
         info?: GroupDetailInfo
     }>
     client: HttpClient
-    // TODO: MessageAgent tsd
-    messageAgent: any
+    messageAgent: MessageAgent
     /**
      * true if QQBot still online/trying to online
      */
@@ -447,6 +446,37 @@ interface ClientRequestConfig extends Axios.AxiosRequestConfig {
     headers?: {
         Origin?: string,
         Referer?: string
+    }
+}
+
+interface MessageFont {
+    name: string | '宋体',
+    size: number | 10,
+    style: [number, number, number] | [0, 0, 0],
+    color: string | '000000'
+}
+
+class MessageAgent {
+    msg_id: number
+    clientid: number | 53999199
+    psessionid: string
+    font: MessageFont
+    readonly defaultMsg: {
+        face: 537,
+        clientid: number | 53999199,
+        msg_id: number,
+        psessionid: string
+    }
+    build(typeOrKeyType, id, content): {
+        face: 537,
+        clientid: number | 53999199,
+        msg_id: number,
+        psessionid: string,
+        to?: number,
+        group_uin?: number,
+        did?: number,
+        content: string,
+        font: MessageFont
     }
 }
 
