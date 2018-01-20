@@ -26,7 +26,7 @@ async function getTokens(u, p) {
     log.debug('Waiting for avatar...');
     await page.waitFor('iframe[name=ptlogin]');
     const ptLoginFrame = page.frames().find(f => f.name() === 'ptlogin');
-    const ptLoginURL = ptLoginFrame.url()
+    const ptLoginURL = ptLoginFrame.url();
     log.debug(ptLoginURL);
     if (ptLoginURL.startsWith('https://xui.ptlogin2.qq.com/cgi-bin/xlogin')) {
         ptLoginFrame.waitFor('#qlogin_list a.face');
