@@ -49,6 +49,29 @@ qq.run();
 
 ### Output
 
+<details>
+<summary>v2.0.0+，密码登录</summary>
+
+```
+[Sat Jan 20 2018 16:17:38 GMT+0800 (CST)] INFO (-/5) 帐号密码登录
+[Sat Jan 20 2018 16:17:50 GMT+0800 (CST)] INFO (-/5) 帐号密码验证成功
+[Sat Jan 20 2018 16:17:50 GMT+0800 (CST)] INFO (4/5) 获取 vfwebqq 成功
+[Sat Jan 20 2018 16:17:50 GMT+0800 (CST)] INFO (5/5) 获取 psessionid 和 uin 成功
+[Sat Jan 20 2018 16:17:50 GMT+0800 (CST)] INFO 开始获取帐号信息及联系人列表
+[Sat Jan 20 2018 16:17:50 GMT+0800 (CST)] INFO 保存 Cookie 到 /tmp/no.cookie
+[Sat Jan 20 2018 16:17:54 GMT+0800 (CST)] INFO 开始接收消息...
+[Sat Jan 20 2018 16:24:38 GMT+0800 (CST)] INFO [Bot601测试群.BetaChat] hello, world
+{"content":"hello, world","type":"group","id":3751278540,"name":"BetaChat","groupId":2657590898,"groupName":"Bot601测试群"}
+[Sat Jan 20 2018 16:24:49 GMT+0800 (CST)] INFO [BetaChat] 测试一下
+{"content":"测试一下","type":"buddy","id":3751278540,"name":"BetaChat"}
+[Sat Jan 20 2018 16:24:49 GMT+0800 (CST)] INFO => [BetaChat] Hello, BetaChat
+```
+
+</details>
+
+<details>
+<summary>v1.0.0+，二维码登录</summary>
+
 ```
 [Tue Sep 26 2017 19:55:17 GMT+0800 (CST)] INFO (0/5) 开始登录，准备下载二维码
 [Tue Sep 26 2017 19:55:18 GMT+0800 (CST)] INFO (1/5) 二维码下载到 /tmp/qq-bot-code.png ，等待扫描
@@ -70,6 +93,8 @@ qq.run();
 {"content":"Hello","type":"buddy","id":3249866953,"name":"Pugna"}
 [Tue Sep 26 2017 19:58:47 GMT+0800 (CST)] INFO 发消息给好友 Pugna : Hello, Pugna
 ```
+
+</details>
 
 ## Docs
 
