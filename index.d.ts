@@ -1,8 +1,79 @@
 import * as Axios from 'axios';
 
-interface BaseResponse {
-    retcode: number
-    result: any
+interface BaseResponse<ResultType> {
+    retcode: number,
+    result: ResultType
+}
+
+interface VfwebqqResult {
+    vfwebqq: string
+}
+
+interface Login2Result {
+    cip: number,
+    f: number,
+    index: number,
+    port: number,
+    psessionid: string,
+    status: string,
+    uin: number,
+    user_state: number,
+    vfwebqq: string
+}
+
+interface UserFriendsResult {
+    friends: Array<{
+        flag: number,
+        uin: number,
+        categories: number
+    }>,
+    marknames: Array<{}>,
+    categories: Array<{}>,
+    vipinfo: Array<{
+        u: number,
+        is_vip: 1 | 0,
+        vip_level: number
+    }>,
+    info: Array<{
+        face: number,
+        flag: number,
+        nick: string,
+        uin: string
+    }>
+
+}
+
+interface GroupListResult {
+    gmasklist: Array<any>,
+    gnamelist: Array<{
+        flag: number,
+        name: string,
+        gid: number,
+        code: number
+    }>,
+    gmarklist: Array<any>
+}
+
+interface DiscuListResult {
+    dnamelist: Array<{
+        name: string,
+        did: number
+    }>
+}
+
+interface OnlineBuddyResult {
+    [index: number]: {
+        client_type: number,
+        status: string,
+        uin: number
+    }
+}
+
+interface RecentListResult {
+    [index: number]: {
+        type: 0 | 1 | 2,
+        uin: number
+    }
 }
 
 interface UserDetailInfo {
@@ -34,7 +105,7 @@ interface UserDetailInfo {
 }
 
 interface BubbyGroupMensInfo {
-    gname: string
+    gname: string,
     mems: Array<{ name: string, uin: number }>
 }
 
@@ -123,13 +194,6 @@ interface QQOptions {
         /** QQ pwd to use in id/pwd login. should NOT encrypt */
         p: string
     },
-    /**
-     * interval to execute cronJobs. unit in `ms`
-     * 
-     * @type {number}
-     * @memberof QQOptions
-     */
-    cronTimeout?: number,
     cookiePath?: string | '/tmp/qq-bot.cookie',
     qrcodePath?: string | '/tmp/code.png'
 }
@@ -145,9 +209,9 @@ export class QQ {
     constructor(options: QQOptions)
     options: QQOptions
     tokens: {
-        uin: string
-        ptwebqq: string
-        vfwebqq: string
+        uin: string,
+        ptwebqq: string,
+        vfwebqq: string,
         psessionid: string
     }
     selfInfo: UserDetailInfo
@@ -180,89 +244,51 @@ export class QQ {
         }>
     };
     discu: Array<{
-        did: number
-        name: string
+        did: number,
+        name: string,
+        info?: DiscuDetailInfo
     }>
     group: Array<{
-        flag: number
-        name: string
+        flag: number,
+        name: string,
         /**
          * use this for send group msg
          */
-        gid: number
+        gid: number,
         /**
          * use this for get group info
          */
-        code: number
+        code: number,
+        info?: GroupDetailInfo
     }>
-    /**
-     * TODO: remove this
-     * @deprecated
-     * API (/get_friend_list) have been removed, so it's empty ...
-     */
-    buddyGroup: Array<BubbyGroupMensInfo>
-    buddyNameMap: Map<string, string>
-    discuNameMap: Map<string, string>
-    groupNameMap: Map<string, string>
-    // TODO: HttpClient tsd
-    client: any
+    client: HttpClient
     // TODO: MessageAgent tsd
     messageAgent: any
     /**
      * true if QQBot still online/trying to online
      */
-    isAlive: boolean
-    /**
-     * functions to exec every `cronTimeout`
-     */
-    cronJobs: Array<() => Promise<any>>
+    _alive: boolean
     run(): Promise<void>
     login(): Promise<void>
-    getSelfInfo(): Promise<void>
-    getBuddy(): Promise<void>
-    getOnlineBuddies(): Promise<void>
-    getGroup(): Promise<void>
-    getDiscu(): Promise<void>
-    getAllGroupMembers(): Promise<void>
-    getAllDiscuMembers(): Promise<void>
-    initInfo(): Promise<void>
-    getBuddyName(uin: number): string
-    getDiscuName(did: number): string
+    getSelfInfo(): Promise<UserDetailInfo>
+    getBuddy(): Promise<UserFriendsResult>
+    getOnlineBuddies(): Promise<OnlineBuddyResult>
+    getGroup(): Promise<GroupListResult>
+    getDiscu(): Promise<DiscuListResult>
+    getBuddyName(uin: number): Promise<string>
+    getDiscuName(did: number): Promise<string>
     getDiscuInfo(uin: number): Promise<DiscuDetailInfo>
-    /**
-     * TODO: remove this
-     * @deprecated
-     * this API (/get_friend_list) has been removed.
-     * It can only return 
-     * ```json
-     * {"ec":1,"em":"no&nbsp;login"}
-     * ```
-     * 
-     * get all buddy and buddy group, including group name and REAL QQ number
-     */
-    async getBubbyGroupInfo(): Array<BubbyGroupMensInfo>
-    /**
-     * TODO: remove this
-     * @deprecated
-     * cannot get anything because API (/get_friend_list) has been removed.
-     * 
-     * get REAL QQ number by buddy remark name / nickname
-     * priority: remark > nickname
-     * it returns array of numbers when 2 or more buddy have same name
-     * it returns -1 if none of your buddy's name matchs the given one
-     */
-    getBuddyQQNum(name: string): number | Array<number> | -1
-    getNameInDiscu(uin: number, did: number): string
-    getGroupName(gIdOrCode: number): string
+    getNameInDiscu(uin: number, did: number): Promise<string>
+    getGroupName(gIdOrCode: number): Promise<string>
     getGroupInfo(code: number): Promise<GroupDetailInfo>
-    getNameInGroup(uin: number, gIdOrCode: number): string
+    getNameInGroup(uin: number, gIdOrCode: number): Promise<string>
     logMessage(msg: Object): void
-    handelMsgRecv(msg: Object): void
+    handelMsgRecv(msg: Object): Promise<void>
     loopPoll(): Promise<void>
-    innerSendMsg(url: string, key: number, id: number, content: string): Promise<void>
-    sendBuddyMsg(uin: number | string, content: string): Promise<void>
-    sendDiscuMsg(did: number | string, content: string): Promise<void>
-    sendGroupMsg(gid: number | string, content: string): Promise<void>
+    innerSendMsg(url: string, key: number, id: number, content: string): Promise<boolean>
+    sendBuddyMsg(uin: number | string, content: string): Promise<boolean>
+    sendDiscuMsg(did: number | string, content: string): Promise<boolean>
+    sendGroupMsg(gid: number | string, content: string): Promise<boolean>
 
     on(event: string, listener?: (...args: any[]) => void): void
     /**
@@ -401,19 +427,19 @@ export class QQ {
 }
 
 interface ReceivedMsgType {
-    id: number
-    name: string
-    type: 'buddy' | 'discu' | 'group'
-    content: string
-    groupId?: string
-    groupName?: string
-    disucId?: string
+    id: number,
+    name: string,
+    type: 'buddy' | 'discu' | 'group',
+    content: string,
+    groupId?: string,
+    groupName?: string,
+    disucId?: string,
     discuName?: string
 }
 
 interface SentMsgType {
-    id: number
-    type: 'buddy' | 'discu' | 'group'
+    id: number,
+    type: 'buddy' | 'discu' | 'group',
     content: string
 }
 
