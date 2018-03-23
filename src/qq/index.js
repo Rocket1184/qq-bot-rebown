@@ -27,7 +27,9 @@ class QQ extends EventEmitter {
             app: {
                 clientid: 53999199,
                 appid: 501004106,
-                login: QQ.LOGIN.QR
+                login: QQ.LOGIN.QR,
+                maxSendRetry: 2,
+                maxShortAllow: 2
             },
             auth: {
                 u: '',
@@ -506,7 +508,11 @@ class QQ extends EventEmitter {
     async loopPoll() {
         this.emit('start-poll');
         log.info('开始接收消息...');
+        // poll that returns 502
         let failCnt = 0;
+        // poll that less than 1s and dose not contain vaild msg
+        let shortCnt = 0;
+        let lastPollTime = Date.now();
         do {
             // check if still alive before polling
             if (!this._alive) {
@@ -536,9 +542,9 @@ class QQ extends EventEmitter {
             } catch (err) {
                 log.warning('[loopPoll] Request Failed: ', err);
                 if (err.response && err.response.status === 502)
-                    log.info(`出现 502 错误 ${++failCnt} 次，正在重试`);
+                    log.warning(`出现 502 错误 ${++failCnt} 次，正在重试`);
                 if (failCnt > 10) {
-                    log.error(`服务器 502 错误超过 ${failCnt} 次，断开连接`);
+                    log.warning(`服务器 502 错误超过 ${failCnt} 次，断开连接`);
                     this._alive = false;
                     // set this._alive to false and enter next loop
                     // before next polling, it would throw Error('disconnect')
@@ -554,6 +560,19 @@ class QQ extends EventEmitter {
                         } catch (err) {
                             log.error(`Error when handling msg:\n${JSON.stringify(pollBody)}\n${err}`);
                             this.emit('error', err);
+                        }
+                    } else {
+                        const now = Date.now();
+                        const pollTime = now - lastPollTime;
+                        if (pollTime <= 1000) {
+                            log.warning(`本次轮询只有 ${pollTime}ms ，疑似无效\n${JSON.stringify(pollBody)}`);
+                            shortCnt++;
+                        }
+                        if (shortCnt > this.options.maxShortAllow) {
+                            shortCnt = 0;
+                            log.warning(`无效轮询超过 ${shortCnt} 次，断开连接`);
+                            this._alive = false;
+                            continue;
                         }
                     }
                     break;
@@ -588,7 +607,7 @@ class QQ extends EventEmitter {
             // send-buddy, send-discu, send-group
             this.emit(`send-${type}`, res, { type, id, content });
         } else {
-            if (tryCount <= 2) {
+            if (tryCount <= this.options.sendMaxRetry) {
                 log.warning(`发送失败：retcode=${res.retcode}, type=${type}, id=${id} 。重试 ${++tryCount} 次`);
                 return await this.innerSendMsg(url, type, id, content, tryCount);
             } else {

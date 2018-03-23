@@ -177,10 +177,20 @@ interface QQOptions {
         clientid?: number,
         appid?: number,
         /** 
-         * Login method. Can be {QQ.LOGIN.QR | QQ.LOGIN.PWD} .
+         * Login method. Can be `{QQ.LOGIN.QR | QQ.LOGIN.PWD}` .
          * Using QR Code login at default.
          */
-        login?: QQ.LOGIN.QR | QQ.LOGIN.PWD
+        login?: QQ.LOGIN.QR | QQ.LOGIN.PWD,
+        /**
+         * max retry count when sending message.
+         * when `retcode !== 0`, should retry. Depends on WebQQ.
+         */
+        maxSendRetry: 2 | number,
+        /**
+         * max allow count that "short poll" happens continuously.
+         * "short poll" means a poll less than 1s and does not contain msg.
+         */
+        maxShortAllow: 2 | number
     },
     font?: {
         name?: string,
