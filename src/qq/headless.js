@@ -1,18 +1,19 @@
 'use strict';
 
-const { mkdtempSync, } = require('fs');
-const { tmpdir, } = require('os');
+const fs = require('fs');
+const os = require('os');
 const { join, sep } = require('path');
 const Log = require('log');
-const log = global.log || new Log(process.env.LOG_LEVEL || 'info');
-
 const Puppeteer = require('puppeteer');
+
+const log = global.log || new Log(process.env.LOG_LEVEL || 'info');
+const headless = process.env.HEADLESS_DEBUG !== 'true';
 
 async function getTokens(u, p) {
     log.debug('Launching browser...');
     const browser = await Puppeteer.launch({
         args: ['--no-sandbox'],
-        headless: process.env.HEADLESS_DEBUG !== 'true'
+        headless
     });
     const page = await browser.newPage();
     try {
@@ -52,7 +53,7 @@ async function getTokens(u, p) {
         log.debug(`Cookie count: ${cookies.length}`);
         const uin = cookies.find(ck => ck.name === 'uin').value;
         const cookieStr = cookies.reduce((str, ck) => `${str}${ck.name}=${ck.value}; `, '');
-        if (process.env.HEADLESS_DEBUG !== 'true') await browser.close();
+        if (headless) await browser.close();
         const tokens = {
             uin,
             vfwebqq,
@@ -64,10 +65,10 @@ async function getTokens(u, p) {
         return tokens;
     } catch (error) {
         log.error('Login with puppeteer:\n', error);
-        const dir = mkdtempSync(tmpdir() + sep + 'qq-bot-rebown-');
+        const dir = fs.mkdtempSync(os.tmpdir() + sep + 'qq-bot-rebown-');
         const path = join(dir, `${Date.now()}.png`);
-        log.error('Screenshot saved to', path);
         await page.screenshot({ path, fullPage: true });
+        log.error('Screenshot saved to', path);
         process.exit(1);
     }
 }
