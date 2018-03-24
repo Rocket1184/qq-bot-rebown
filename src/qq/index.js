@@ -61,6 +61,7 @@ class QQ extends EventEmitter {
 
     constructor(options = {}) {
         super();
+        /** @type {{app: any; auth: any; font: any; cookiePath: string; qrcodePath: string}} */
         this.options = QQ.parseOptions(options);
         this.tokens = {
             uin: '',
@@ -475,7 +476,7 @@ class QQ extends EventEmitter {
             const { value: { from_uin, send_uin }, poll_type } = msg;
             let msgParsed = { content };
             // do not handle messages sent by self
-            if (from_uin === this.selfInfo.account || from_uin === this.tokens.uin) return;
+            if (send_uin === this.tokens.uin) continue;
             switch (poll_type) {
                 case 'message':
                     msgParsed.type = 'buddy';
@@ -512,7 +513,7 @@ class QQ extends EventEmitter {
         let failCnt = 0;
         // poll that less than 1s and dose not contain vaild msg
         let shortCnt = 0;
-        let lastPollTime = Date.now();
+        let lastPollTime = -1;
         do {
             // check if still alive before polling
             if (!this._alive) {
@@ -520,6 +521,7 @@ class QQ extends EventEmitter {
                 this.emit('disconnect');
                 throw new Error('disconnect');
             }
+            lastPollTime = Date.now();
             let pollBody;
             try {
                 pollBody = await this.client.post({
@@ -544,14 +546,17 @@ class QQ extends EventEmitter {
                 if (err.response && err.response.status === 502)
                     log.warning(`出现 502 错误 ${++failCnt} 次，正在重试`);
                 if (failCnt > 10) {
-                    log.warning(`服务器 502 错误超过 ${failCnt} 次，断开连接`);
+                    log.warning(`服务器 502 错误达到 ${failCnt} 次，断开连接`);
                     this._alive = false;
                     // set this._alive to false and enter next loop
                     // before next polling, it would throw Error('disconnect')
                     continue;
                 }
             }
-            log.debug(pollBody);
+            const now = Date.now();
+            const pollTime = now - lastPollTime;
+            log.debug(`pollTime: ${pollTime}ms`);
+            log.debug(JSON.stringify(pollBody, null, 2));
             switch (pollBody.retcode) {
                 case 0:
                     if (pollBody.result) {
@@ -562,15 +567,13 @@ class QQ extends EventEmitter {
                             this.emit('error', err);
                         }
                     } else {
-                        const now = Date.now();
-                        const pollTime = now - lastPollTime;
-                        if (pollTime <= 1000) {
+                        if (pollTime <= 3000) {
                             log.warning(`本次轮询只有 ${pollTime}ms ，疑似无效\n${JSON.stringify(pollBody)}`);
                             shortCnt++;
                         }
-                        if (shortCnt > this.options.maxShortAllow) {
+                        if (shortCnt > this.options.app.maxShortAllow) {
                             shortCnt = 0;
-                            log.warning(`无效轮询超过 ${shortCnt} 次，断开连接`);
+                            log.warning(`无效轮询达到 ${shortCnt} 次，断开连接`);
                             this._alive = false;
                             continue;
                         }
@@ -599,7 +602,7 @@ class QQ extends EventEmitter {
         const res = await this.client.post({
             url,
             data: this.messageAgent.build(type, id, content),
-            headers: { Referer: URL.referer151105 }
+            headers: { Referer: URL.refererc151105 }
         });
         log.debug(res);
         if (res.retcode === 0) {
@@ -607,11 +610,11 @@ class QQ extends EventEmitter {
             // send-buddy, send-discu, send-group
             this.emit(`send-${type}`, res, { type, id, content });
         } else {
-            if (tryCount <= this.options.sendMaxRetry) {
+            if (tryCount < this.options.app.sendMaxRetry) {
                 log.warning(`发送失败：retcode=${res.retcode}, type=${type}, id=${id} 。重试 ${++tryCount} 次`);
                 return await this.innerSendMsg(url, type, id, content, tryCount);
             } else {
-                log.warning(`发送失败超过 ${++tryCount} 次。retcode=${res.retcode}, type=${type}, id=${id}`);
+                log.warning(`发送失败 ${++tryCount} 次。retcode=${res.retcode}, type=${type}, id=${id}`);
                 return false;
             }
         }
