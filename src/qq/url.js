@@ -25,6 +25,7 @@ module.exports = {
     originD1: 'https://d1.web2.qq.com',
     originS2: 'https://s.web2.qq.com',
     referer151105: 'https://d1.web2.qq.com/proxy.html?v=20151105001&callback=1&id=2',
+    refererc151105: 'https://d1.web2.qq.com/cfproxy.html?v=20151105001&callback=1',
     referer130916: 'https://s.web2.qq.com/proxy.html?v=20130916001&callback=1&id=1',
     recentList: 'https://d1.web2.qq.com/channel/get_recent_list2',
     selfInfo: `https://s.web2.qq.com/api/get_self_info2?t=${Date.now()}`,
