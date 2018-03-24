@@ -440,9 +440,9 @@ interface ReceivedMsgType {
     name: string,
     type: 'buddy' | 'discu' | 'group',
     content: string,
-    groupId?: string,
+    groupId?: number,
     groupName?: string,
-    disucId?: string,
+    discuId?: number,
     discuName?: string
 }
 
