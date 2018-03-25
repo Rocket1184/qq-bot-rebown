@@ -29,7 +29,7 @@ class QQ extends EventEmitter {
                 appid: 501004106,
                 login: QQ.LOGIN.QR,
                 maxSendRetry: 2,
-                maxShortAllow: 2
+                maxShortAllow: 3
             },
             auth: {
                 u: '',
@@ -571,10 +571,10 @@ class QQ extends EventEmitter {
                             log.warning(`本次轮询只有 ${pollTime}ms ，疑似无效\n${JSON.stringify(pollBody)}`);
                             shortCnt++;
                         }
-                        if (shortCnt > this.options.app.maxShortAllow) {
-                            shortCnt = 0;
+                        if (shortCnt >= this.options.app.maxShortAllow) {
                             log.warning(`无效轮询达到 ${shortCnt} 次，断开连接`);
                             this._alive = false;
+                            shortCnt = 0;
                             continue;
                         }
                     }
