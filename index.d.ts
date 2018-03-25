@@ -177,10 +177,10 @@ interface QQOptions {
         clientid?: number,
         appid?: number,
         /** 
-         * Login method. Can be `{QQ.LOGIN.QR | QQ.LOGIN.PWD}` .
+         * Login method. Can be `{ QQ.LOGIN.QR | QQ.LOGIN.PWD }` .
          * Using QR Code login at default.
          */
-        login?: QQ.LOGIN.QR | QQ.LOGIN.PWD,
+        login?: 0 | 1;
         /**
          * max retry count when sending message.
          * when `retcode !== 0`, should retry. Depends on WebQQ.
@@ -188,9 +188,9 @@ interface QQOptions {
         maxSendRetry: 2 | number,
         /**
          * max allow count that "short poll" happens continuously.
-         * "short poll" means a poll less than 1s and does not contain msg.
+         * "short poll" means a poll less than 3000ms and does not contain msg.
          */
-        maxShortAllow: 2 | number
+        maxShortAllow: 3 | number
     },
     font?: {
         name?: string,
@@ -210,7 +210,7 @@ interface QQOptions {
 
 export class QQ {
     /** login method constants */
-    static LOGIN = {
+    static LOGIN: {
         /** scan QR Code */
         QR: 0,
         /** use id/pwd. specify in constructor. */
@@ -466,7 +466,7 @@ interface MessageFont {
     color: string | '000000'
 }
 
-class MessageAgent {
+declare class MessageAgent {
     msg_id: number
     clientid: number | 53999199
     psessionid: string
