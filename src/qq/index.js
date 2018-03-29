@@ -101,9 +101,14 @@ class QQ extends EventEmitter {
             await this.loopPoll();
         } catch (err) {
             if (err.message === 'disconnect') {
+                this.emit('disconnect');
                 log.info('尝试重新登录');
-                return this.run();
+            } else if (err.message === 'cookie-expire') {
+                this.emit('cookie-expire');
+                log.info(`删除 Cookie 文件 ${this.options.cookiePath}`);
+                await Utils.unlinkAsync(this.options.cookiePath);
             }
+            return this.run();
         }
     }
 
@@ -217,10 +222,8 @@ class QQ extends EventEmitter {
             this.tokens.vfwebqq = vfwebqqResp.result.vfwebqq;
             log.info('(4/5) 获取 vfwebqq 成功');
         } catch (err) {
-            log.info('(-/5) Cookie 已失效，删除 Cookie 文件并重新登录');
-            Utils.unlinkAsync(this.options.cookiePath);
-            this.emit('cookie-expire');
-            return this.login();
+            log.info('(-/5) Cookie 已失效');
+            throw new Error('cookie-expire');
         }
         // Step5: psessionid and uin
         const loginStat = await this.client.post({
@@ -258,13 +261,12 @@ class QQ extends EventEmitter {
             url: URL.selfInfo,
             headers: { Referer: URL.referer130916 }
         });
-        if (res.retcode === 6) {
-            this._alive = false;
-        } else if (res.retcode === 0 && res.result) {
+        if (res.retcode === 0 && res.result) {
             this.selfInfo = res.result;
             return this.selfInfo;
         } else {
             log.warning('尝试获取用户信息时失败：', res);
+            throw new Error('cookie-expire');
         }
     }
 
@@ -508,7 +510,6 @@ class QQ extends EventEmitter {
             // check if still alive before polling
             if (!this._alive) {
                 log.info('连接已断开，停止轮询');
-                this.emit('disconnect');
                 throw new Error('disconnect');
             }
             lastPollTime = Date.now();
@@ -542,8 +543,8 @@ class QQ extends EventEmitter {
                     this._alive = false;
                 }
                 // there is no response to handle, just continue
-                    continue;
-                }
+                continue;
+            }
             const now = Date.now();
             const pollTime = now - lastPollTime;
             log.debug(`pollTime: ${pollTime}ms`);
