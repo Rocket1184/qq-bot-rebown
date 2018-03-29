@@ -271,9 +271,7 @@ class QQ extends EventEmitter {
     async getBuddy() {
         const res = await this.client.post({
             url: URL.getBuddy,
-            headers: {
-                Referer: URL.referer130916
-            },
+            headers: { Referer: URL.referer130916 },
             data: {
                 vfwebqq: this.tokens.vfwebqq,
                 hash: Codec.hashU(this.tokens.uin, this.tokens.ptwebqq)
@@ -290,9 +288,7 @@ class QQ extends EventEmitter {
     async getOnlineBuddies() {
         const res = await this.client.get({
             url: URL.onlineBuddies(this.tokens.vfwebqq, this.tokens.psessionid),
-            headers: {
-                Referer: URL.referer151105
-            }
+            headers: { Referer: URL.referer151105 }
         });
         if (res.retcode === 0) {
             return res.result;
@@ -304,9 +300,7 @@ class QQ extends EventEmitter {
     async getRecentList() {
         const res = await this.client.post({
             url: URL.recentList,
-            headers: {
-                Referer: URL.referer151105
-            },
+            headers: { Referer: URL.referer151105 },
             data: {
                 vfwebqq: this.tokens.vfwebqq,
                 hash: Codec.hashU(this.tokens.uin, this.tokens.ptwebqq)
@@ -322,9 +316,7 @@ class QQ extends EventEmitter {
     async getGroup() {
         const res = await this.client.post({
             url: URL.getGroup,
-            headers: {
-                Referer: URL.referer130916
-            },
+            headers: { Referer: URL.referer130916 },
             data: {
                 vfwebqq: this.tokens.vfwebqq,
                 hash: Codec.hashU(this.tokens.uin, this.tokens.ptwebqq)
@@ -341,9 +333,7 @@ class QQ extends EventEmitter {
     async getDiscu() {
         const res = await this.client.post({
             url: URL.getDiscu(this.tokens.vfwebqq, this.tokens.psessionid),
-            headers: {
-                Referer: URL.referer130916
-            },
+            headers: { Referer: URL.referer130916 },
             data: {
                 vfwebqq: this.tokens.vfwebqq,
                 hash: Codec.hashU(this.tokens.uin, this.tokens.ptwebqq)
