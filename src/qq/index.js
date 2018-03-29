@@ -86,18 +86,18 @@ class QQ extends EventEmitter {
     }
 
     async run() {
-        await this.login();
-        this._alive = true;
-        log.info('开始获取帐号信息及联系人列表');
-        await Promise.all([
-            this.getBuddy(),
-            this.getGroup(),
-            this.getDiscu(),
-            this.getSelfInfo(),
-            this.getOnlineBuddies(),
-            this.getRecentList()
-        ]);
         try {
+            await this.login();
+            this._alive = true;
+            log.info('开始获取帐号信息及联系人列表');
+            await Promise.all([
+                this.getBuddy(),
+                this.getGroup(),
+                this.getDiscu(),
+                this.getSelfInfo(),
+                this.getOnlineBuddies(),
+                this.getRecentList()
+            ]);
             await this.loopPoll();
         } catch (err) {
             if (err.message === 'disconnect') {
