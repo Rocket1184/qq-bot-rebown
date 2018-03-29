@@ -547,12 +547,13 @@ class QQ extends EventEmitter {
                     log.warning(`出现 502 错误 ${++failCnt} 次，正在重试`);
                 if (failCnt > 10) {
                     log.warning(`服务器 502 错误达到 ${failCnt} 次，断开连接`);
-                    this._alive = false;
                     // set this._alive to false and enter next loop
                     // before next polling, it would throw Error('disconnect')
+                    this._alive = false;
+                }
+                // there is no response to handle, just continue
                     continue;
                 }
-            }
             const now = Date.now();
             const pollTime = now - lastPollTime;
             log.debug(`pollTime: ${pollTime}ms`);
