@@ -3,12 +3,20 @@
  * https://www.douban.com/note/249723561/
  *
  * url template:
- * http://api.t.sina.com.cn/short_url/shorten.json?source=${appkey}&url_long=${url}
+ * https://api.t.sina.com.cn/short_url/shorten.json?source=${appkey}&url_long=${url}
  */
 
 'use strict';
 
-const http = require('http');
+const https = require('https');
+
+function http2https(link) {
+    if (link.startsWith('http:')) {
+        return link.replace(/^http:/, 'https:');
+    } else {
+        return link;
+    }
+}
 
 function shortenUrl(url) {
     let path = '';
@@ -22,9 +30,9 @@ function shortenUrl(url) {
     path = '/short_url/shorten.json?source=3271760578' + path;
 
     return new Promise((resolve, reject) => {
-        http.request({
+        https.request({
             method: 'GET',
-            protocol: 'http:',
+            protocol: 'https:',
             host: 'api.t.sina.com.cn',
             path
         }, res => {
@@ -38,9 +46,9 @@ function shortenUrl(url) {
                     reject(response.error);
                 } else {
                     if (!argIsArray) {
-                        resolve(response[0].url_short);
+                        resolve(http2https(response[0].url_short));
                     } else {
-                        resolve(response.map(r => r.url_short));
+                        resolve(response.map(r => http2https(r.url_short)));
                     }
                 }
             });

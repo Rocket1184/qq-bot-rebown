@@ -1,6 +1,6 @@
 {
   "name": "qq-bot-rebown",
-  "version": "1.2.3",
+  "version": "2.1.4",
   "description": "Web QQ client using es7 syntax",
   "engines": {
     "node": ">=7.6.0"
@@ -19,11 +19,14 @@
   "author": "rocka <i@rocka.me> (https://rocka.me)",
   "license": "MIT",
   "dependencies": {
-    "axios": "^0.16.2",
+    "axios": "^0.18.0",
     "cookie": "^0.3.1",
     "log": "^1.4.0"
   },
   "devDependencies": {
     "@types/cookie": "^0.3.1"
+  },
+  "optionalDependencies": {
+    "puppeteer": "^1.2.0"
   }
 }

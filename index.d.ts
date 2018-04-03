@@ -1,8 +1,79 @@
 import * as Axios from 'axios';
 
-interface BaseResponse {
-    retcode: number
-    result: any
+interface BaseResponse<ResultType> {
+    retcode: number,
+    result: ResultType
+}
+
+interface VfwebqqResult {
+    vfwebqq: string
+}
+
+interface Login2Result {
+    cip: number,
+    f: number,
+    index: number,
+    port: number,
+    psessionid: string,
+    status: string,
+    uin: number,
+    user_state: number,
+    vfwebqq: string
+}
+
+interface UserFriendsResult {
+    friends: Array<{
+        flag: number,
+        uin: number,
+        categories: number
+    }>,
+    marknames: Array<{}>,
+    categories: Array<{}>,
+    vipinfo: Array<{
+        u: number,
+        is_vip: 1 | 0,
+        vip_level: number
+    }>,
+    info: Array<{
+        face: number,
+        flag: number,
+        nick: string,
+        uin: string
+    }>
+
+}
+
+interface GroupListResult {
+    gmasklist: Array<any>,
+    gnamelist: Array<{
+        flag: number,
+        name: string,
+        gid: number,
+        code: number
+    }>,
+    gmarklist: Array<any>
+}
+
+interface DiscuListResult {
+    dnamelist: Array<{
+        name: string,
+        did: number
+    }>
+}
+
+interface OnlineBuddyResult {
+    [index: number]: {
+        client_type: number,
+        status: string,
+        uin: number
+    }
+}
+
+interface RecentListResult {
+    [index: number]: {
+        type: 0 | 1 | 2,
+        uin: number
+    }
 }
 
 interface UserDetailInfo {
@@ -31,6 +102,11 @@ interface UserDetailInfo {
     province: string,
     gender: string,
     mobile: string
+}
+
+interface BubbyGroupMensInfo {
+    gname: string,
+    mems: Array<{ name: string, uin: number }>
 }
 
 interface GroupDetailInfo {
@@ -99,7 +175,22 @@ interface DiscuDetailInfo {
 interface QQOptions {
     app?: {
         clientid?: number,
-        appid?: number
+        appid?: number,
+        /** 
+         * Login method. Can be `{ QQ.LOGIN.QR | QQ.LOGIN.PWD }` .
+         * Using QR Code login at default.
+         */
+        login?: 0 | 1;
+        /**
+         * max retry count when sending message.
+         * when `retcode !== 0`, should retry. Depends on WebQQ.
+         */
+        maxSendRetry: 2 | number,
+        /**
+         * max allow count that "short poll" happens continuously.
+         * "short poll" means a poll less than 3000ms and does not contain msg.
+         */
+        maxShortAllow: 3 | number
     },
     font?: {
         name?: string,
@@ -107,24 +198,30 @@ interface QQOptions {
         style?: Array<number> | [0, 0, 0],
         color?: string | '000000'
     },
-    /**
-     * interval to execute cronJobs. unit in `ms`
-     * 
-     * @type {number}
-     * @memberof QQOptions
-     */
-    cronTimeout: number,
+    auth?: {
+        /** QQ id to use in id/pwd login */
+        u: string,
+        /** QQ pwd to use in id/pwd login. should NOT encrypt */
+        p: string
+    },
     cookiePath?: string | '/tmp/qq-bot.cookie',
     qrcodePath?: string | '/tmp/code.png'
 }
 
 export class QQ {
+    /** login method constants */
+    static LOGIN: {
+        /** scan QR Code */
+        QR: 0,
+        /** use id/pwd. specify in constructor. */
+        PWD: 1
+    }
     constructor(options: QQOptions)
     options: QQOptions
     tokens: {
-        uin: string
-        ptwebqq: string
-        vfwebqq: string
+        uin: string,
+        ptwebqq: string,
+        vfwebqq: string,
         psessionid: string
     }
     selfInfo: UserDetailInfo
@@ -157,60 +254,50 @@ export class QQ {
         }>
     };
     discu: Array<{
-        did: number
-        name: string
+        did: number,
+        name: string,
+        info?: DiscuDetailInfo
     }>
     group: Array<{
-        flag: number
-        name: string
+        flag: number,
+        name: string,
         /**
          * use this for send group msg
          */
-        gid: number
+        gid: number,
         /**
          * use this for get group info
          */
-        code: number
+        code: number,
+        info?: GroupDetailInfo
     }>
-    buddyNameMap: Map<string, string>
-    discuNameMap: Map<string, string>
-    groupNameMap: Map<string, string>
-    // TODO: HttpClient tsd
-    client: any
-    // TODO: MessageAgent tsd
-    messageAgent: any
+    client: HttpClient
+    messageAgent: MessageAgent
     /**
      * true if QQBot still online/trying to online
      */
-    isAlive: boolean
-    /**
-     * functions to exec every `cronTimeout`
-     */
-    cronJobs: Array<() => Promise<any>>
+    _alive: boolean
     run(): Promise<void>
     login(): Promise<void>
-    getSelfInfo(): Promise<void>
-    getBuddy(): Promise<void>
-    getOnlineBuddies(): Promise<void>
-    getGroup(): Promise<void>
-    getDiscu(): Promise<void>
-    getAllGroupMembers(): Promise<void>
-    getAllDiscuMembers(): Promise<void>
-    initInfo(): Promise<void>
-    getBuddyName(uin: number): string
-    getDiscuName(did: number): string
+    getSelfInfo(): Promise<UserDetailInfo>
+    getBuddy(): Promise<UserFriendsResult>
+    getOnlineBuddies(): Promise<OnlineBuddyResult>
+    getGroup(): Promise<GroupListResult>
+    getDiscu(): Promise<DiscuListResult>
+    getBuddyName(uin: number): Promise<string>
+    getDiscuName(did: number): Promise<string>
     getDiscuInfo(uin: number): Promise<DiscuDetailInfo>
-    getNameInDiscu(uin: number, did: number): string
-    getGroupName(gIdOrCode: number): string
+    getNameInDiscu(uin: number, did: number): Promise<string>
+    getGroupName(gIdOrCode: number): Promise<string>
     getGroupInfo(code: number): Promise<GroupDetailInfo>
-    getNameInGroup(uin: number, gIdOrCode: number): string
+    getNameInGroup(uin: number, gIdOrCode: number): Promise<string>
     logMessage(msg: Object): void
-    handelMsgRecv(msg: Object): void
+    handelMsgRecv(msg: Object): Promise<void>
     loopPoll(): Promise<void>
-    innerSendMsg(url: string, key: number, id: number, content: string): Promise<void>
-    sendBuddyMsg(uin: number | string, content: string): Promise<void>
-    sendDiscuMsg(did: number | string, content: string): Promise<void>
-    sendGroupMsg(gid: number | string, content: string): Promise<void>
+    innerSendMsg(url: string, key: number, id: number, content: string): Promise<boolean>
+    sendBuddyMsg(uin: number | string, content: string): Promise<boolean>
+    sendDiscuMsg(did: number | string, content: string): Promise<boolean>
+    sendGroupMsg(gid: number | string, content: string): Promise<boolean>
 
     on(event: string, listener?: (...args: any[]) => void): void
     /**
@@ -228,13 +315,6 @@ export class QQ {
      * @memberof QQ
      */
     on(event: 'cookie-relogin')
-    /**
-     * found cookie file but in bad format
-     * 
-     * @param {'cookie-invalid'} event 
-     * @memberof QQ
-     */
-    on(event: 'cookie-invalid')
     /**
      * QR-Code downloaded, about to scan
      * 
@@ -356,19 +436,19 @@ export class QQ {
 }
 
 interface ReceivedMsgType {
-    id: number
-    name: string
-    type: 'buddy' | 'discu' | 'group'
-    content: string
-    groupId?: string
-    groupName?: string
-    disucId?: string
+    id: number,
+    name: string,
+    type: 'buddy' | 'discu' | 'group',
+    content: string,
+    groupId?: number,
+    groupName?: string,
+    discuId?: number,
     discuName?: string
 }
 
 interface SentMsgType {
-    id: number
-    type: 'buddy' | 'discu' | 'group'
+    id: number,
+    type: 'buddy' | 'discu' | 'group',
     content: string
 }
 
@@ -376,6 +456,37 @@ interface ClientRequestConfig extends Axios.AxiosRequestConfig {
     headers?: {
         Origin?: string,
         Referer?: string
+    }
+}
+
+interface MessageFont {
+    name: string | '宋体',
+    size: number | 10,
+    style: [number, number, number] | [0, 0, 0],
+    color: string | '000000'
+}
+
+declare class MessageAgent {
+    msg_id: number
+    clientid: number | 53999199
+    psessionid: string
+    font: MessageFont
+    readonly defaultMsg: {
+        face: 537,
+        clientid: number | 53999199,
+        msg_id: number,
+        psessionid: string
+    }
+    build(typeOrKeyType, id, content): {
+        face: 537,
+        clientid: number | 53999199,
+        msg_id: number,
+        psessionid: string,
+        to?: number,
+        group_uin?: number,
+        did?: number,
+        content: string,
+        font: MessageFont
     }
 }
 

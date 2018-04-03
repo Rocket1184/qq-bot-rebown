@@ -10,15 +10,30 @@ const Codec = require('../codec');
 const Utils = require('../utils');
 const Client = require('../httpclient');
 const MessageAgent = require('./message-agent');
+const Headless = require('./headless');
 
 const log = global.log || new Log(process.env.LOG_LEVEL || 'info');
 
 class QQ extends EventEmitter {
+    static get LOGIN() {
+        return {
+            QR: 0,
+            PWD: 1
+        };
+    }
+
     static get defaultOptions() {
         return {
             app: {
                 clientid: 53999199,
-                appid: 501004106
+                appid: 501004106,
+                login: QQ.LOGIN.QR,
+                maxSendRetry: 2,
+                maxShortAllow: 3
+            },
+            auth: {
+                u: '',
+                p: ''
             },
             font: {
                 name: '宋体',
@@ -26,20 +41,27 @@ class QQ extends EventEmitter {
                 style: [0, 0, 0],
                 color: '000000'
             },
-            cronTimeout: 60 * 1000,
             cookiePath: path.join(os.tmpdir(), 'qq-bot.cookie'),
             qrcodePath: path.join(os.tmpdir(), 'qq-bot-code.png')
         };
     }
 
     static parseOptions(opt) {
-        const app = Object.assign(QQ.defaultOptions.app, opt.app);
-        const font = Object.assign(QQ.defaultOptions.font, opt.font);
-        return Object.assign(QQ.defaultOptions, opt, { app, font });
+        const dflt = QQ.defaultOptions;
+        const app = Object.assign(dflt.app, opt.app);
+        const auth = Object.assign(dflt.auth, opt.auth);
+        const font = Object.assign(dflt.font, opt.font);
+        if (app.login === QQ.LOGIN.PWD) {
+            if (!auth.u || !auth.p) {
+                throw new Error('auth.u and auth.p must be specificed when using pwd login mode.');
+            }
+        }
+        return Object.assign(QQ.defaultOptions, opt, { app, auth, font });
     }
 
     constructor(options = {}) {
         super();
+        /** @type {{app: any; auth: any; font: any; cookiePath: string; qrcodePath: string}} */
         this.options = QQ.parseOptions(options);
         this.tokens = {
             uin: '',
@@ -48,65 +70,84 @@ class QQ extends EventEmitter {
             psessionid: ''
         };
         this.selfInfo = {};
-        this.buddy = {};
-        this.discu = {};
-        this.group = {};
-        this.buddyNameMap = new Map();
-        this.discuNameMap = new Map();
-        this.groupNameMap = new Map();
+        this.buddy = {
+            friends: [],
+            marknames: [],
+            categories: [],
+            vipinfo: [],
+            info: []
+        };
+        this.discu = [];
+        this.group = [];
         this.client = new Client();
         this.messageAgent = null;
         // true if QQBot still online/trying to online
-        this.isAlive = false;
-        // functions to exec every `cronTimeout`
-        this.cronJobs = [
-            () => this.getOnlineBuddies(),
-            () => this.getBuddy()
-                .then(() => this.buddyNameMap = new Map()),
-            () => this.getGroup()
-                .then(() => Promise.all(this.getAllGroupMembers())
-                    .then(() => this.groupNameMap = new Map())),
-            () => this.getDiscu()
-                .then(() => Promise.all(this.getAllDiscuMembers())
-                    .then(() => this.discuNameMap = new Map()))
-        ];
+        this._alive = false;
     }
 
     async run() {
-        await this.login();
-        this.isAlive = true;
-        await this.initInfo();
         try {
+            await this.login();
+            this._alive = true;
+            log.info('开始获取帐号信息及联系人列表');
+            await Promise.all([
+                this.getBuddy(),
+                this.getGroup(),
+                this.getDiscu(),
+                this.getSelfInfo(),
+                this.getOnlineBuddies(),
+                this.getRecentList()
+            ]);
             await this.loopPoll();
         } catch (err) {
             if (err.message === 'disconnect') {
-                this.isAlive = false;
-                return this.run();
+                this.emit('disconnect');
+                log.info('尝试重新登录');
+            } else if (err.message === 'cookie-expire') {
+                this.emit('cookie-expire');
+                log.info(`删除 Cookie 文件 ${this.options.cookiePath}`);
+                await Utils.unlinkAsync(this.options.cookiePath);
             }
+            return this.run();
         }
     }
 
     async login() {
         this.emit('login');
         beforeGotVfwebqq: {
+            // cookie file exists, try login with it
             if (await Utils.existAsync(this.options.cookiePath)) {
+                const cookieFile = await Utils.readFileAsync(this.options.cookiePath, 'utf-8');
+                const cookieText = cookieFile.toString();
+                log.info('(-/5) 检测到 cookie 文件，尝试自动登录');
+                this.emit('cookie-relogin');
+                const ptwebqqMatch = cookieText.match(/ptwebqq=(.+?);/);
+                // ptwebqq can be an empty string if login with id/pwd
+                this.tokens.ptwebqq = ptwebqqMatch ? ptwebqqMatch[1] : '';
+                this.client.setCookie(cookieText);
+                // skip this label if found cookie, goto Step4
+                break beforeGotVfwebqq;
+            }
+            // id/pwd login have a higher prioirty than QR Code login
+            if (this.options.app.login === QQ.LOGIN.PWD) {
+                let puppeteer;
                 try {
-                    const cookieFile = await Utils.readFileAsync(this.options.cookiePath, 'utf-8');
-                    const cookieText = cookieFile.toString();
-                    log.info('(-/5) 检测到 cookie 文件，尝试自动登录');
-                    this.emit('cookie-relogin');
-                    this.tokens.ptwebqq = cookieText.match(/ptwebqq=(.+?);/)[1];
-                    this.client.setCookie(cookieText);
-                    // skip this label if found cookie, goto Step4
-                    break beforeGotVfwebqq;
+                    puppeteer = require('puppeteer');
                 } catch (err) {
-                    this.tokens.ptwebqq = '';
-                    Utils.unlinkAsync(this.options.cookiePath);
-                    log.info('(-/5) Cookie 文件非法，自动登录失败');
-                    this.emit('cookie-invalid');
+                    log.warning(`要使用帐号密码登录，请先安装 puppeteer`);
+                    log.info(`切换回二维码登录`);
+                }
+                if (puppeteer) {
+                    log.info('(-/5) 帐号密码登录');
+                    const tokens = await Headless.getTokens(this.options.auth.u, this.options.auth.p);
+                    log.info('(-/5) 帐号密码验证成功');
+                    this.client.setCookie(tokens.cookieStr);
+                    // goto Step4
+                    break beforeGotVfwebqq;
                 }
             }
-            log.info('(0/5) 开始登录，准备下载二维码');
+            // use QR Code login as fallback option
+            log.info('(0/5) 二维码登录，准备下载二维码');
 
             // Step0: prepare cookies, pgv_info and pgv_pvid
             // http://pingjs.qq.com/tcss.ping.js  tcss.run & _cookie.init
@@ -137,7 +178,7 @@ class QQ extends EventEmitter {
                 while (!scanSuccess && !qrCodeExpired) {
                     const responseBody = await this.client.get({
                         url: ptqrloginURL,
-                        headers: { Referer: URL.ptqrloginReferer },
+                        headers: { Referer: URL.loginPrepare },
                     });
                     log.debug(responseBody.trim());
                     const arr = responseBody.match(quotRegxp).map(i => i.substring(1, i.length - 1));
@@ -148,20 +189,24 @@ class QQ extends EventEmitter {
                     } else if (arr[0] === '65') {
                         qrCodeExpired = true;
                         this.emit('qr-expire');
-                        log.info(`(1/5) 二维码已失效，重新下载二维码`);
-                    } else await Utils.sleep(2000);
+                        log.info('(1/5) 二维码已失效，重新下载二维码');
+                    } else if (arr[0] === '67') {
+                        log.info('(1/5) 二维码已扫描，请在手机端确认登录');
+                        await Utils.sleep(2000);
+                        continue;
+                    } await Utils.sleep(2000);
                 }
             }
-            log.info('(2/5) 二维码扫描完成');
+            log.info('(2/5) 二维码认证完成');
             Utils.unlinkAsync(this.options.qrcodePath);
 
-            // Step3: find token 'vfwebqq' in cookie
+            // Step3: find token 'ptwebqq' in cookie
             // NOTICE: the request returns 302 when success. DO NOT REJECT 302.
             await this.client.get({
                 url: ptlogin4URL,
                 maxRedirects: 0,     // Axios follows redirect automatically, but we need to disable it here.
                 validateStatus: status => status === 302,
-                headers: { Referer: URL.ptlogin4Referer }
+                headers: { Referer: URL.referer130916 }
             });
             this.tokens.ptwebqq = this.client.getCookie('ptwebqq');
             log.info('(3/5) 获取 ptwebqq 成功');
@@ -170,17 +215,15 @@ class QQ extends EventEmitter {
         // Step4: request token 'vfwebqq'
         const vfwebqqResp = await this.client.get({
             url: URL.getVfwebqqURL(this.tokens.ptwebqq),
-            headers: { Referer: URL.vfwebqqReferer }
+            headers: { Referer: URL.referer130916 }
         });
         log.debug(vfwebqqResp);
         try {
             this.tokens.vfwebqq = vfwebqqResp.result.vfwebqq;
             log.info('(4/5) 获取 vfwebqq 成功');
         } catch (err) {
-            Utils.unlinkAsync(this.options.cookiePath);
-            log.info('(-/5) Cookie 已失效，切换到扫码登录');
-            this.emit('cookie-expire');
-            return this.login();
+            log.info('(-/5) Cookie 已失效');
+            throw new Error('cookie-expire');
         }
         // Step5: psessionid and uin
         const loginStat = await this.client.post({
@@ -193,8 +236,8 @@ class QQ extends EventEmitter {
                 status: "online",
             },
             headers: {
-                Origin: URL.login2Origin,
-                Referer: URL.login2Referer
+                Origin: URL.originD1,
+                Referer: URL.referer151105
             }
         });
         log.debug(loginStat);
@@ -213,272 +256,263 @@ class QQ extends EventEmitter {
         this.emit('login-success', this.options.cookiePath, cookie);
     }
 
-    getSelfInfo() {
-        log.info('开始获取用户信息');
-        return this.client.get({
+    async getSelfInfo() {
+        const res = await this.client.get({
             url: URL.selfInfo,
             headers: { Referer: URL.referer130916 }
         });
-    }
-
-    getBuddy() {
-        log.info('开始获取好友列表');
-        return this.client.post({
-            url: URL.getBuddy,
-            headers: {
-                Referer: URL.referer130916
-            },
-            data: {
-                vfwebqq: this.tokens.vfwebqq,
-                hash: Codec.hashU(this.tokens.uin, this.tokens.ptwebqq)
-            }
-        });
-    }
-
-    getOnlineBuddies() {
-        log.info('开始获取好友在线状态');
-        return this.client.get({
-            url: URL.onlineBuddies(this.tokens.vfwebqq, this.tokens.psessionid),
-            headers: {
-                Referer: URL.referer151105
-            }
-        });
-    }
-
-    getGroup() {
-        log.info('开始获取群列表');
-        return this.client.post({
-            url: URL.getGroup,
-            headers: {
-                Referer: URL.referer130916
-            },
-            data: {
-                vfwebqq: this.tokens.vfwebqq,
-                hash: Codec.hashU(this.tokens.uin, this.tokens.ptwebqq)
-            }
-        });
-    }
-
-    getDiscu() {
-        log.info('开始获取讨论组列表');
-        return this.client.post({
-            url: URL.getDiscu(this.tokens.vfwebqq, this.tokens.psessionid),
-            headers: {
-                Referer: URL.referer130916
-            },
-            data: {
-                vfwebqq: this.tokens.vfwebqq,
-                hash: Codec.hashU(this.tokens.uin, this.tokens.ptwebqq)
-            }
-        });
-    }
-
-    getAllGroupMembers() {
-        return this.group.map(async e => {
-            const rawInfo = await this.getGroupInfo(e.code);
-            return e.info = rawInfo.result;
-        });
-    }
-
-    getAllDiscuMembers() {
-        return this.discu.map(async e => {
-            const rawInfo = await this.getDiscuInfo(e.did);
-            return e.info = rawInfo.result;
-        });
-    }
-
-    async initInfo() {
-        const selfInfo = await this.getSelfInfo();
-        if (selfInfo.retcode === 6) {
-            console.info('Cookie 已过期，需重新登录');
-            await Utils.unlinkAsync(this.options.cookiePath);
-            this.emit('disconnect');
-            throw new Error('disconnect');
+        if (res.retcode === 0 && res.result) {
+            this.selfInfo = res.result;
+            return this.selfInfo;
+        } else {
+            log.warning('尝试获取用户信息时失败：', res);
+            throw new Error('cookie-expire');
         }
-        this.selfInfo = selfInfo.result;
-        let manyInfo = await Promise.all([
-            this.getBuddy(),
-            this.getOnlineBuddies(),
-            this.getDiscu(),
-            this.getGroup(),
-            this.getNumberInfo(),
-        ]);
-        log.debug(JSON.stringify(manyInfo, null, 4));
-        this.buddy = manyInfo[0].result;
-        this.discu = manyInfo[2].result.dnamelist;
-        this.group = manyInfo[3].result.gnamelist;
-        this.numberList = manyInfo[4].result;
-        let promises = this.getAllGroupMembers();
-        promises = promises.concat(this.getAllDiscuMembers());
-        manyInfo = await Promise.all(promises);
-        log.debug(JSON.stringify(manyInfo, null, 4));
-        log.info('信息初始化完成');
-        // invoke cronJobs every `cronTimeout`
-        (function cron() {
-            if (this.isAlive) {
-                this.cronJobs.forEach(job => job());
-                setTimeout(cron.bind(this), this.options.cronTimeout);
+    }
+
+    async getBuddy() {
+        const res = await this.client.post({
+            url: URL.getBuddy,
+            headers: { Referer: URL.referer130916 },
+            data: {
+                vfwebqq: this.tokens.vfwebqq,
+                hash: Codec.hashU(this.tokens.uin, this.tokens.ptwebqq)
             }
-        }).apply(this);
+        });
+        if (res.retcode === 0 && res.result) {
+            this.buddy = res.result;
+            return this.buddy;
+        } else {
+            log.warning('尝试获取好友列表时失败：', res);
+        }
     }
 
-    getBuddyName(uin) {
-        let name = this.buddyNameMap.get(uin);
-        if (name) return name;
-        this.buddy.marknames.some(e => e.uin == uin ? name = e.markname : false);
-        if (!name) this.buddy.info.some(e => e.uin == uin ? name = e.nick : false);
-        this.buddyNameMap.set(uin, name);
-        return name;
+    async getOnlineBuddies() {
+        const res = await this.client.get({
+            url: URL.onlineBuddies(this.tokens.vfwebqq, this.tokens.psessionid),
+            headers: { Referer: URL.referer151105 }
+        });
+        if (res.retcode === 0) {
+            return res.result;
+        } else {
+            log.warning('尝试获取好友在线状态时失败：', res);
+        }
     }
 
-    getDiscuName(did) {
-        let name = this.discuNameMap.get(did);
-        if (name) return name;
-        let discu = this.discu
-            .filter(e => e.did == did)
-            .pop();
-        if (!discu) return null;
-        this.discuNameMap.set(did, discu.name);
-        return discu.name;
+    async getRecentList() {
+        const res = await this.client.post({
+            url: URL.recentList,
+            headers: { Referer: URL.referer151105 },
+            data: {
+                vfwebqq: this.tokens.vfwebqq,
+                hash: Codec.hashU(this.tokens.uin, this.tokens.ptwebqq)
+            }
+        });
+        if (res.retcode === 0) {
+            return res.result;
+        } else {
+            log.warning('尝试获取最近联系人列表时失败：', res);
+        }
     }
 
-    getDiscuInfo(did) {
-        return this.client.get({
+    async getGroup() {
+        const res = await this.client.post({
+            url: URL.getGroup,
+            headers: { Referer: URL.referer130916 },
+            data: {
+                vfwebqq: this.tokens.vfwebqq,
+                hash: Codec.hashU(this.tokens.uin, this.tokens.ptwebqq)
+            }
+        });
+        if (res.retcode === 0 && res.result && res.result.gnamelist) {
+            this.group = res.result.gnamelist;
+            return this.group;
+        } else {
+            log.warning('尝试获取群列表时失败：', res);
+        }
+    }
+
+    async getDiscu() {
+        const res = await this.client.post({
+            url: URL.getDiscu(this.tokens.vfwebqq, this.tokens.psessionid),
+            headers: { Referer: URL.referer130916 },
+            data: {
+                vfwebqq: this.tokens.vfwebqq,
+                hash: Codec.hashU(this.tokens.uin, this.tokens.ptwebqq)
+            }
+        });
+        if (res.retcode === 0 && res.result && res.result.dnamelist) {
+            this.discu = res.result.dnamelist;
+            return this.discu;
+        } else {
+            log.warning('尝试获取讨论组列表时失败：', res);
+        }
+    }
+
+    async getBuddyName(uin) {
+        let mark = this.buddy.marknames.find(e => e.uin == uin);
+        if (mark) return mark.markname;
+        let info = this.buddy.info.find(e => e.uin == uin);
+        if (!info) {
+            await this.getBuddy();
+            mark = this.buddy.marknames.find(e => e.uin == uin);
+            if (mark) return mark.markname;
+            info = this.buddy.info.find(e => e.uin == uin);
+        }
+        return info ? info.nick : uin;
+    }
+
+    async getDiscuName(did) {
+        let discu = this.discu.find(e => e.did == did);
+        if (!discu) {
+            await this.getDiscu();
+            discu = this.discu.find(e => e.did == did);
+        }
+        return discu ? discu.name : did;
+    }
+
+    async getDiscuInfo(did) {
+        const res = await this.client.get({
             url: URL.discuInfo(did, this.tokens.psessionid, this.tokens.vfwebqq),
             headers: { Referer: URL.referer151105 }
         });
-    }
-
-    getNumberInfo() {
-        return this.client.get({
-            url: URL.NumberListInfo(this.client.getCookie('skey')),
-            headers: { Referer: URL.refererNumberList }
-        });
-    }
-
-    // 根据name来获取qq用户的qq号码
-    // 备注:如果qq好友中存在同名,只有一个取得到qq号码
-    getNumberByName(name) {
-        if (!this.numberList) {
-            return false;
+        if (res.retcode === 0 && res.result) {
+            return res.result;
+        } else {
+            log.warning('尝试获取讨论组信息时失败：', res);
         }
-        for (let key in this.numberList) {
-            let mems = this.numberList[key].mems;
-            // console.log({mems});
-            let mem = mems.find(mem => mem.name == name);
-            if (mem) {
-                return mem.uin;
-            }
+    }
+
+    async getNameInDiscu(uin, did) {
+        let discu = this.discu.find(g => did == g.did);
+        if (!discu) {
+            await this.getDiscu();
+            discu = this.discu.find(g => did == g.did);
+            if (!discu) throw new Error(`[getNameInDiscu] No such discu ${did}`);
         }
-        return false;
+        if (!discu.info) {
+            discu.info = await this.getDiscuInfo(did);
+            if (!discu.info) return uin;
+        }
+        const minfo = discu.info.mem_info.find(i => i.uin == uin);
+        if (minfo) return minfo.nick;
+        return uin; // uin not found. may self or newly added member
     }
 
-    getNameInDiscu(uin, did) {
-        const nameKey = `${did}${uin}`;
-        let name = this.discuNameMap.get(nameKey);
-        if (name) return name;
-        let discu = this.discu
-            .filter(g => did == g.did)
-            .pop();
-        if (!discu) return null;
-        discu.info.mem_info.some(i => i.uin == uin ? name = i.nick : false);
-        // uin not found in discu. might be myself, or newly added member
-        if (!name) name = uin;
-        this.discuNameMap.set(nameKey, name);
-        return name;
+    async getGroupName(gIdOrCode) {
+        let group = this.group.find(g => gIdOrCode == g.gid || gIdOrCode == g.code);
+        if (!group) {
+            await this.getGroup();
+            group = this.group.find(g => gIdOrCode == g.gid || gIdOrCode == g.code);
+        }
+        return group ? group.name : gIdOrCode;
     }
 
-    getGroupName(gIdOrCode) {
-        let name = this.groupNameMap.get(gIdOrCode);
-        if (name) return name;
-        let group = this.group
-            .filter(g => gIdOrCode == g.gid || gIdOrCode == g.code)
-            .pop();
-        if (!group) return null;
-        this.groupNameMap.set(gIdOrCode, group.name);
-        return group.name;
-    }
-
-    getGroupInfo(code) {
-        return this.client.get({
+    async getGroupInfo(code) {
+        const res = await this.client.get({
             url: URL.groupInfo(code, this.tokens.vfwebqq),
             headers: { Referer: URL.referer130916 }
         });
-    }
-
-    getNameInGroup(uin, gIdOrCode) {
-        const nameKey = `${gIdOrCode}${uin}`;
-        let name = this.groupNameMap.get(nameKey);
-        if (name) return name;
-        let group = this.group
-            .filter(g => gIdOrCode == g.gid || gIdOrCode == g.code)
-            .pop();
-        if (!group) return null;
-        if (group.info.cards) {
-            group.info.cards.some(i => i.muin == uin ? name = i.card : false);
+        if (res.retcode === 0 && res.result) {
+            return res.result;
+        } else {
+            log.warning('尝试获取群信息时失败：', res);
         }
-        if (!name && group.info.minfo) group.info.minfo.some(i => i.uin == uin ? name = i.nick : false);
-        // uin not found in group. might be myself, or newly added member
-        if (!name) name = uin;
-        this.groupNameMap.set(nameKey, name);
-        return name;
     }
 
-    logMessage(msg) {
-        const content = msg.result[0].value.content.filter(e => typeof e == 'string').join(' ');
-        const { value: { from_uin, send_uin }, poll_type } = msg.result[0];
-        switch (poll_type) {
+    async getNameInGroup(uin, gIdOrCode) {
+        let group = this.group.find(g => gIdOrCode == g.gid || gIdOrCode == g.code);
+        if (!group) {
+            await this.getGroup();
+            group = this.group.find(g => gIdOrCode == g.gid || gIdOrCode == g.code);
+            if (!group) throw new Error(`[getNameInGroup] No such group ${gIdOrCode}`);
+        }
+        if (!group.info) {
+            group.info = await this.getGroupInfo(gIdOrCode);
+            if (!group.info) return uin;
+        }
+        const card = group.info.cards.find(i => i.muin == uin);
+        if (card) {
+            return card.card;
+        }
+        let minfo = group.info.minfo.find(i => i.uin == uin);
+        if (!minfo) {
+            group.info = await this.getGroupInfo(gIdOrCode);
+            minfo = group.info.minfo.find(i => i.uin == uin);
+        }
+        if (minfo) return minfo.nick;
+        return uin; // uin not found. may self or newly added member
+    }
+
+    logMessage(msg, msgParsed) {
+        switch (msg.poll_type) {
             case 'message':
-                log.info(`[新消息] ${this.getBuddyName(from_uin)} | ${content}`);
+                log.info(`[${msgParsed.name}] ${msgParsed.content}`);
                 break;
             case 'group_message':
-                log.info(`[群消息] ${this.getGroupName(from_uin)} : ${this.getNameInGroup(send_uin, from_uin)} | ${content}`);
+                log.info(`[${msgParsed.groupName}.${msgParsed.name}] ${msgParsed.content}`);
                 break;
             case 'discu_message':
-                log.info(`[讨论组] ${this.getDiscuName(from_uin)} : ${this.getNameInDiscu(send_uin, from_uin)} | ${content}`);
+                log.info(`[${msgParsed.discuName}.${msgParsed.name}] ${msgParsed.content}`);
                 break;
             default:
-                log.notice(`未知消息类型 ‘${poll_type}’`);
+                log.notice(`未知消息类型 ${msg.poll_type}:\n${JSON.stringify(msg, null, 2)}`);
                 break;
         }
     }
 
-    handelMsgRecv(msg) {
-        const content = msg.result[0].value.content.filter(e => typeof e == 'string').join(' ');
-        const { value: { from_uin, send_uin }, poll_type } = msg.result[0];
-        let msgParsed = { content };
-        switch (poll_type) {
-            case 'message':
-                msgParsed.type = 'buddy';
-                msgParsed.id = from_uin;
-                msgParsed.name = this.getBuddyName(from_uin);
-                break;
-            case 'group_message':
-                msgParsed.type = 'group';
-                msgParsed.id = send_uin;
-                msgParsed.name = this.getNameInGroup(send_uin, from_uin);
-                msgParsed.groupId = from_uin;
-                msgParsed.groupName = this.getGroupName(from_uin);
-                break;
-            case 'discu_message':
-                msgParsed.type = 'discu';
-                msgParsed.id = send_uin;
-                msgParsed.name = this.getNameInDiscu(send_uin, from_uin);
-                msgParsed.discuId = from_uin;
-                msgParsed.discuName = this.getDiscuName(from_uin);
-                break;
-            default:
-                break;
+    async handleMsgRecv(pollBody) {
+        // msg.result may have more than one members; but I've never seen that
+        for (let msg of pollBody.result) {
+            const content = msg.value.content.filter(e => typeof e == 'string').join(' ').trim();
+            const { value: { from_uin, send_uin }, poll_type } = msg;
+            let msgParsed = { content };
+            // do not handle messages sent by self
+            if (send_uin === this.tokens.uin) continue;
+            switch (poll_type) {
+                case 'message':
+                    msgParsed.type = 'buddy';
+                    msgParsed.id = from_uin;
+                    msgParsed.name = await this.getBuddyName(from_uin);
+                    break;
+                case 'group_message':
+                    msgParsed.type = 'group';
+                    msgParsed.id = send_uin;
+                    msgParsed.name = await this.getNameInGroup(send_uin, from_uin);
+                    msgParsed.groupId = from_uin;
+                    msgParsed.groupName = await this.getGroupName(from_uin);
+                    break;
+                case 'discu_message':
+                    msgParsed.type = 'discu';
+                    msgParsed.id = send_uin;
+                    msgParsed.name = await this.getNameInDiscu(send_uin, from_uin);
+                    msgParsed.discuId = from_uin;
+                    msgParsed.discuName = await this.getDiscuName(from_uin);
+                    break;
+                default:
+                    break;
+            }
+            this.logMessage(msg, msgParsed);
+            this.emit('msg', msgParsed, pollBody);
+            this.emit(msgParsed.type, msgParsed, pollBody);
         }
-        this.emit('msg', msgParsed, msg);
-        this.emit(msgParsed.type, msgParsed, msg);
     }
 
     async loopPoll() {
         this.emit('start-poll');
         log.info('开始接收消息...');
+        // poll that returns 502
         let failCnt = 0;
+        // poll that less than 1s and dose not contain vaild msg
+        let shortCnt = 0;
+        let lastPollTime = -1;
         do {
+            // check if still alive before polling
+            if (!this._alive) {
+                log.info('连接已断开，停止轮询');
+                throw new Error('disconnect');
+            }
+            lastPollTime = Date.now();
             let pollBody;
             try {
                 pollBody = await this.client.post({
@@ -490,7 +524,7 @@ class QQ extends EventEmitter {
                         key: ''
                     },
                     headers: {
-                        Origin: URL.msgOrigin,
+                        Origin: URL.originD1,
                         Referer: URL.referer151105
                     },
                     responseType: 'text',
@@ -499,78 +533,102 @@ class QQ extends EventEmitter {
                 this.emit('polling', pollBody);
                 if (failCnt > 0) failCnt = 0;
             } catch (err) {
-                log.debug('Request Failed: ', err);
+                log.warning('[loopPoll] Request Failed: ', err);
                 if (err.response && err.response.status === 502)
-                    log.info(`出现 502 错误 ${++failCnt} 次，正在重试`);
+                    log.warning(`出现 502 错误 ${++failCnt} 次，正在重试`);
                 if (failCnt > 10) {
-                    log.error(`服务器 502 错误超过 ${failCnt} 次，连接已断开`);
-                    this.emit('disconnect');
-                    throw new Error('disconnect');
+                    log.warning(`服务器 502 错误达到 ${failCnt} 次，断开连接`);
+                    // set this._alive to false and enter next loop
+                    // before next polling, it would throw Error('disconnect')
+                    this._alive = false;
                 }
-            } finally {
-                log.debug(pollBody);
-                switch (pollBody.retcode) {
-                    case 0:
-                        if (pollBody.result) {
-                            try {
-                                this.logMessage(pollBody);
-                                this.handelMsgRecv(pollBody);
-                            } catch (err) {
-                                log.error('Error when handling msg: ', pollBody, err);
-                                this.emit('error', err);
-                            }
-                        }
-                        break;
-                    case 103:
-                        await this.getOnlineBuddies();
-                        break;
-                    case 100001:
-                        log.info('登录状态已失效，连接断开');
-                        this.emit('disconnect');
-                        throw new Error('disconnect');
-                    default:
-                        log.notice('未知的 retcode: ', pollBody.retcode);
-                        log.notice(pollBody);
-                        break;
-                }
+                // there is no response to handle, just continue
+                continue;
             }
-        } while (true);
+            const now = Date.now();
+            const pollTime = now - lastPollTime;
+            log.debug(`pollTime: ${pollTime}ms`);
+            log.debug(JSON.stringify(pollBody, null, 2));
+            switch (pollBody.retcode) {
+                case 0:
+                    if (pollBody.result) {
+                        try {
+                            this.handleMsgRecv(pollBody);
+                        } catch (err) {
+                            log.error(`Error when handling msg:\n${JSON.stringify(pollBody)}\n${err}`);
+                            this.emit('error', err);
+                        }
+                    } else {
+                        if (pollTime <= 3000) {
+                            log.warning(`本次轮询只有 ${pollTime}ms ，疑似无效\n${JSON.stringify(pollBody)}`);
+                            shortCnt++;
+                        }
+                        if (shortCnt >= this.options.app.maxShortAllow) {
+                            log.warning(`无效轮询达到 ${shortCnt} 次，断开连接`);
+                            this._alive = false;
+                            shortCnt = 0;
+                            continue;
+                        }
+                    }
+                    break;
+                case 103:
+                    await this.getOnlineBuddies();
+                    break;
+                case 100001:
+                    log.info('登录状态失效');
+                    this._alive = false;
+                    break;
+                case 100012: // eslint-disable-line no-case-declarations
+                    const match = /cost\[(\d+\.\d+s)\]$/.exec(pollBody.retmsg);
+                    // I NEED OPTIONAL CHAINING!!!
+                    log.info(`在过去的${match ? ` ${match[1]} ` : '一段时间'}内没有收到消息`);
+                    break;
+                default:
+                    log.notice(`未知的 retcode: ${pollBody.retcode}\n${JSON.stringify(pollBody, null, 2)}`);
+                    break;
+            }
+        } while (true); // eslint-disable-line no-constant-condition
     }
 
-    async innerSendMsg(url, type, id, content) {
-        const resp = await this.client.post({
+    async innerSendMsg(url, type, id, content, tryCount = 0) {
+        const res = await this.client.post({
             url,
             data: this.messageAgent.build(type, id, content),
-            headers: { Referer: URL.referer151105 }
+            headers: { Referer: URL.refererc151105 }
         });
-        log.debug(resp);
-        /* it returns
-         * { errmsg: 'error!!!', retcode: 100100 }
-         * when success, i don't know why.
-         * fxxk tencent
-         */
-        this.emit('send', resp, { type, id, content });
-        // send-buddy, send-discu, send-group
-        this.emit(`send-${type}`, resp, { type, id, content });
-        return resp;
+        log.debug(res);
+        if (res.retcode === 0) {
+            this.emit('send', res, { type, id, content });
+            // send-buddy, send-discu, send-group
+            this.emit(`send-${type}`, res, { type, id, content });
+        } else {
+            if (tryCount < this.options.app.sendMaxRetry) {
+                log.warning(`发送失败：retcode=${res.retcode}, type=${type}, id=${id} 。重试 ${++tryCount} 次`);
+                return await this.innerSendMsg(url, type, id, content, tryCount);
+            } else {
+                log.warning(`发送失败 ${++tryCount} 次。retcode=${res.retcode}, type=${type}, id=${id}`);
+                return false;
+            }
+        }
+        return true;
     }
 
     async sendBuddyMsg(uin, content) {
-        const resp = await this.innerSendMsg(URL.buddyMsg, 'buddy', uin, content);
-        log.info(`发消息给好友 ${this.getBuddyName(uin)} : ${content}`);
-        return resp;
+        const res = await this.innerSendMsg(URL.buddyMsg, 'buddy', uin, content);
+        if (res) log.info(`=> [${await this.getBuddyName(uin)}] ${content}`);
+        return res;
     }
 
     async sendDiscuMsg(did, content) {
-        const resp = await this.innerSendMsg(URL.discuMsg, 'discu', did, content);
-        log.info(`发消息给讨论组 ${this.getDiscuName(did)} : ${content}`);
-        return resp;
+        const res = await this.innerSendMsg(URL.discuMsg, 'discu', did, content);
+        if (res) log.info(`=> [${await this.getDiscuName(did)}] ${content}`);
+        return res;
     }
 
     async sendGroupMsg(gid, content) {
-        const resp = await this.innerSendMsg(URL.groupMsg, 'group', gid, content);
-        log.info(`发消息给群 ${this.getGroupName(gid)} : ${content}`);
-        return resp;
+        const res = await this.innerSendMsg(URL.groupMsg, 'group', gid, content);
+        if (res) log.info(`=> [${await this.getGroupName(gid)}] ${content}`);
+        return res;
     }
 }
 

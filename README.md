@@ -8,6 +8,7 @@
 ## Features
 
 - 扫码登录
+- 密码登录 （powered by [`puppeteer`](https://github.com/GoogleChrome/puppeteer)）
 - 使用最近一次登录过的 Cookie 自动登录
 - 记录每条收到的消息以及发送者
 - 使用 `EventEmitter` 管理事件（登录、消息、断线等）
@@ -16,7 +17,6 @@
 
 ## RouteMap
 
-- [ ] 获取好友的 QQ 号码
 - [ ] 发送图片或文件 (WIP)
 - [ ] 在群中 @ 群成员 (WIP)
 
@@ -27,6 +27,8 @@
 ```js
 const { QQ } = require('qq-bot-rebown');
 
+// 构造函数可以添加参数
+// 详情参阅 [tsd 类型定义文件](./index.d.ts) 中 QQOptions 部分
 const qq = new QQ();
 
 // 设置 “收到消息” 事件监听
@@ -43,9 +45,32 @@ qq.on('buddy', (msg) => {
 qq.run();
 ```
 
-浏览器打开 [http://localhost:8721/code](http://localhost:8721/code) , 扫描二维码并允许登录。
+若系统支持，程序将自动打开二维码，请扫码并允许登录。
 
 ### Output
+
+<details>
+<summary>v2.0.0+，密码登录</summary>
+
+```
+[Sat Jan 20 2018 16:17:38 GMT+0800 (CST)] INFO (-/5) 帐号密码登录
+[Sat Jan 20 2018 16:17:50 GMT+0800 (CST)] INFO (-/5) 帐号密码验证成功
+[Sat Jan 20 2018 16:17:50 GMT+0800 (CST)] INFO (4/5) 获取 vfwebqq 成功
+[Sat Jan 20 2018 16:17:50 GMT+0800 (CST)] INFO (5/5) 获取 psessionid 和 uin 成功
+[Sat Jan 20 2018 16:17:50 GMT+0800 (CST)] INFO 开始获取帐号信息及联系人列表
+[Sat Jan 20 2018 16:17:50 GMT+0800 (CST)] INFO 保存 Cookie 到 /tmp/no.cookie
+[Sat Jan 20 2018 16:17:54 GMT+0800 (CST)] INFO 开始接收消息...
+[Sat Jan 20 2018 16:24:38 GMT+0800 (CST)] INFO [Bot601测试群.BetaChat] hello, world
+{"content":"hello, world","type":"group","id":3751278540,"name":"BetaChat","groupId":2657590898,"groupName":"Bot601测试群"}
+[Sat Jan 20 2018 16:24:49 GMT+0800 (CST)] INFO [BetaChat] 测试一下
+{"content":"测试一下","type":"buddy","id":3751278540,"name":"BetaChat"}
+[Sat Jan 20 2018 16:24:49 GMT+0800 (CST)] INFO => [BetaChat] Hello, BetaChat
+```
+
+</details>
+
+<details>
+<summary>v1.0.0+，二维码登录</summary>
 
 ```
 [Tue Sep 26 2017 19:55:17 GMT+0800 (CST)] INFO (0/5) 开始登录，准备下载二维码
@@ -69,7 +94,7 @@ qq.run();
 [Tue Sep 26 2017 19:58:47 GMT+0800 (CST)] INFO 发消息给好友 Pugna : Hello, Pugna
 ```
 
-更多示例，请参考 [example.js](./example.js)
+</details>
 
 ## Docs
 

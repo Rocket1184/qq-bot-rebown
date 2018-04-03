@@ -3,7 +3,13 @@
 class MessageAgent {
     constructor(options) {
         const { clientid, psessionid, font } = options;
-        this.msg_id = Date.now() % 10 ** 8;
+        this.t = (function () {
+            var t = (new Date()).getTime();
+            t = (t - t % 1000) / 1000;
+            t = t % 10000 * 10000;
+            return t;
+        })();
+        this.sequence = 0;
         this.clientid = clientid || 53999199;
         this.psessionid = psessionid;
         this.font = font || {
@@ -14,11 +20,16 @@ class MessageAgent {
         };
     }
 
+    get msgId() {
+        this.sequence++;
+        return this.t + this.sequence;
+    }
+
     get defaultMsg() {
         return {
             face: 537,
             clientid: this.clientid,
-            msg_id: ++this.msg_id,
+            msg_id: this.msgId,
             psessionid: this.psessionid
         };
     }

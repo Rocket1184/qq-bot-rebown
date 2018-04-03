@@ -21,13 +21,30 @@ function openFile(filePath) {
         case 'darwin':
         default:
             cp.exec(`open ${filePath}`);
-            break;    
+            break;
     }
 }
 
 function sleep(ms) {
     return new Promise(resolve => {
         setTimeout(() => resolve(), ms);
+    });
+}
+
+const escapedStrMap = {
+    'amp': '&',
+    'apos': '\'',
+    'lt': '<',
+    'gt': '>',
+    'quot': '"',
+    'nbsp': '\xa0'
+};
+
+const regEscaped = /&([a-z]+);/ig;
+
+function unEscapeHtml(html) {
+    return html.replace(regEscaped, (match, escaped) => {
+        return escapedStrMap[escaped.toLowerCase()] || escaped;
     });
 }
 
@@ -38,5 +55,6 @@ module.exports = {
     readFileAsync,
     writeFileAsync,
     openFile,
-    sleep
+    sleep,
+    unEscapeHtml
 };
