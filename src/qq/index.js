@@ -428,7 +428,7 @@ class QQ extends EventEmitter {
             if (!group) throw new Error(`[getNameInGroup] No such group ${gIdOrCode}`);
         }
         if (!group.info) {
-            group.info = await this.getGroupInfo(gIdOrCode);
+            group.info = await this.getGroupInfo(group.code);
             if (!group.info) return uin;
         }
         const card = group.info.cards.find(i => i.muin == uin);
@@ -437,7 +437,7 @@ class QQ extends EventEmitter {
         }
         let minfo = group.info.minfo.find(i => i.uin == uin);
         if (!minfo) {
-            group.info = await this.getGroupInfo(gIdOrCode);
+            group.info = await this.getGroupInfo(group.code);
             minfo = group.info.minfo.find(i => i.uin == uin);
         }
         if (minfo) return minfo.nick;
