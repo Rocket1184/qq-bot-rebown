@@ -574,13 +574,14 @@ class QQ extends EventEmitter {
                 case 103:
                     await this.getOnlineBuddies();
                     break;
+                case 100000: // "login domain error"
                 case 100001:
                     log.info('登录状态失效');
                     this._alive = false;
                     break;
                 case 100012: // eslint-disable-line no-case-declarations
+                    // this case maybe deprecated
                     const match = /cost\[(\d+\.\d+s)\]$/.exec(pollBody.retmsg);
-                    // I NEED OPTIONAL CHAINING!!!
                     log.info(`在过去的${match ? ` ${match[1]} ` : '一段时间'}内没有收到消息`);
                     break;
                 default:
