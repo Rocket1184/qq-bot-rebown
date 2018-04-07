@@ -46,6 +46,12 @@ class QQ extends EventEmitter {
         };
     }
 
+    /**
+     * parse received object to standard option
+     * 
+     * @param {any} opt
+     * @returns {QQ.defaultOptions}
+     */
     static parseOptions(opt) {
         const dflt = QQ.defaultOptions;
         const app = Object.assign(dflt.app, opt.app);
@@ -61,7 +67,6 @@ class QQ extends EventEmitter {
 
     constructor(options = {}) {
         super();
-        /** @type {{app: any; auth: any; font: any; cookiePath: string; qrcodePath: string}} */
         this.options = QQ.parseOptions(options);
         this.tokens = {
             uin: '',
