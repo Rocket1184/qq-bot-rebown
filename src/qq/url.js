@@ -18,7 +18,7 @@ module.exports = {
     },
     getPtqrloginURL(qrsig) {
         const decoded = Codec.decodeQrsig(qrsig);
-        return `https://ssl.ptlogin2.qq.com/ptqrlogin?ptqrtoken=${decoded}&webqq_type=10&remember_uin=1&login2qq=1&aid=501004106&u1=http%3A%2F%2Fw.qq.com%2Fproxy.html%3Flogin2qq%3D1%26webqq_type%3D10&ptredirect=0&ptlang=2052&daid=164&from_ui=1&pttype=1&dumy=&fp=loginerroralert&action=0-0-123332&mibao_css=m_webqq&t=undefined&g=1&js_type=0&js_ver=10141&login_sig=&pt_randsalt=0`;
+        return `https://ssl.ptlogin2.qq.com/ptqrlogin?ptqrtoken=${decoded}&webqq_type=10&remember_uin=1&login2qq=1&aid=501004106&u1=http%3A%2F%2Fw.qq.com%2Fproxy.html%3Flogin2qq%3D1%26webqq_type%3D10&ptredirect=0&ptlang=2052&daid=164&from_ui=1&pttype=1&dumy=&fp=loginerroralert&action=0-0-12038&mibao_css=m_webqq&t=undefined&g=1&js_type=0&js_ver=10203&login_sig=&pt_randsalt=2`;
     },
     getVfwebqqURL: ptwebqq => `https://s.web2.qq.com/api/getvfwebqq?ptwebqq=${ptwebqq}&clientid=53999199&psessionid=&t=${Date.now()}`,
     login2: 'https://d1.web2.qq.com/channel/login2',
