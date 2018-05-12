@@ -469,7 +469,7 @@ class QQ extends EventEmitter {
     async handleMsgRecv(pollBody) {
         // msg.result may have more than one members; but I've never seen that
         for (let msg of pollBody.result) {
-            const content = msg.value.content.filter(e => typeof e == 'string').join(' ').trim();
+            const content = Utils.unEscapeHtml(msg.value.content.filter(e => typeof e == 'string').join(' ').trim());
             const { value: { from_uin, send_uin }, poll_type } = msg;
             let msgParsed = { content };
             // do not handle messages sent by self
