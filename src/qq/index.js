@@ -473,7 +473,7 @@ class QQ extends EventEmitter {
             const { value: { from_uin, send_uin }, poll_type } = msg;
             let msgParsed = { content };
             // do not handle messages sent by self
-            if (send_uin === this.tokens.uin) continue;
+            if (from_uin === this.tokens.uin || send_uin === this.tokens.uin) continue;
             switch (poll_type) {
                 case 'message':
                     msgParsed.type = 'buddy';
