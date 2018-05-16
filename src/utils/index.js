@@ -5,7 +5,9 @@ const util = require('util');
 const cp = require('child_process');
 
 const shortenUrl = require('./shortenurl');
-const existAsync = util.promisify(fs.exists);
+const existAsync = path => new Promise(r => {
+    fs.access(path, err => err ? r(false) : r(true));
+});
 const unlinkAsync = util.promisify(fs.unlink);
 const readFileAsync = util.promisify(fs.readFile);
 const writeFileAsync = util.promisify(fs.writeFile);
