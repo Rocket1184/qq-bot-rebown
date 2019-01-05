@@ -1,3 +1,30 @@
+# `DEPRECATED`
+
+- `Sat 05 Jan 2019 02:02:40 PM CST`
+
+腾讯已将部分 Smart QQ 的域名指向了不可用的 IP 地址。 Smart QQ 彻底凉了。本项目即日起不再维护。
+
+```console
+$ drill s.web2.qq.com
+;; ->>HEADER<<- opcode: QUERY, rcode: NOERROR, id: 27920
+;; flags: qr rd ra ; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0
+;; QUESTION SECTION:
+;; s.web2.qq.com.       IN      A
+
+;; ANSWER SECTION:
+s.web2.qq.com.  579     IN      A       0.0.0.1
+
+;; AUTHORITY SECTION:
+
+;; ADDITIONAL SECTION:
+
+;; Query time: 13 msec
+;; EDNS: version 0; flags: ; udp: 4096
+;; SERVER: 127.0.0.1
+;; WHEN: Sat Jan  5 14:15:32 2019
+;; MSG SIZE  rcvd: 71
+```
+
 # qq-bot-rebown
 
 [![npm version](https://img.shields.io/npm/v/qq-bot-rebown.svg)](https://badge.fury.io/js/qq-bot-rebown)
